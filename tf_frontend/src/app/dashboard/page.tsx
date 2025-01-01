@@ -2,45 +2,49 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { AppBar, Box, Button, Container, Divider, Drawer, IconButton, List, ListItem, ListItemText, Toolbar, Typography } from '@mui/material';
+import {
+  AppBar,
+  Box,
+  Button,
+  Container,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  Toolbar,
+  Typography,
+  CardMedia,
+} from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import { styled } from '@mui/system';
+
+const drawerWidth = 240;
 
 const Dashboard = () => {
   const router = useRouter();
   const [user, setUser] = useState<{ name: string; email: string; picture: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Step 1: Call /api/auth/check to verify the session
-        const sessionCheckResponse = await fetch('http://localhost:5000/api/auth/check', {
+        const response = await fetch('http://localhost:5000/api/auth/check', {
           method: 'GET',
-          credentials: 'include',  // Include cookies with the request
+          credentials: 'include',
         });
-
-        if (!sessionCheckResponse.ok) {
-          throw new Error('Session verification failed.');
-        }
-
-        const sessionData = await sessionCheckResponse.json();
-        console.log('Session verified:', sessionData);
-
-        if (sessionData.valid) {
-          // If session is valid, set user data from the session response
+        const data = await response.json();
+        if (data.valid) {
           setUser({
-            name: sessionData.user.name,
-            email: sessionData.user.email,
-            picture: sessionData.user.picture || null,
+            name: data.user.name,
+            email: data.user.email,
+            picture: data.user.picture || null,
           });
         } else {
-          // If session is invalid, redirect to login
           router.push('/login?error=invalid_session');
         }
-      } catch (error) {
-        console.error('Error verifying session:', error);
+      } catch {
         router.push('/login?error=server_error');
       }
       setLoading(false);
@@ -51,106 +55,126 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      // Call logout API or clear session data if needed
       await fetch('http://localhost:5000/api/auth/logout', {
         method: 'POST',
-        credentials: 'include', // Include cookies with the request
+        credentials: 'include',
       });
       router.push('/login');
-    } catch (error) {
-      console.error('Error during logout:', error);
+    } catch {
       router.push('/login');
     }
   };
 
   const handleDrawerToggle = () => {
-    setOpen(!open);
+    setMobileOpen(!mobileOpen);
   };
 
+  const handleGenerateAI = () => {
+    router.push('/generateai'); // Redirect to /generateai
+  };
+
+  const drawer = (
+    <Box sx={{ padding: 2 }}>
+      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Foodie Dashboard</Typography>
+      <Divider sx={{ marginY: 2 }} />
+      <List>
+        {['Recipes', 'Categories', 'Favorites'].map((text) => (
+          <ListItem button key={text}>
+            <ListItemText primary={text} />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
   if (loading) {
-    return <div>Loading...</div>;
+    return <Box sx={{ textAlign: 'center', padding: 5 }}>Loading...</Box>;
   }
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* Sidebar */}
-      <Drawer
+      <AppBar
+        position="fixed"
         sx={{
-          width: 240,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 240,
-            boxSizing: 'border-box',
-          },
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: 'primary.main',
         }}
-        variant="persistent"
-        anchor="left"
-        open={open}
       >
-        <Box sx={{ padding: 2 }}>
-          <Typography variant="h6">Foodie Dashboard</Typography>
-          <Divider />
-          <List>
-            {['Recipes', 'Categories', 'Favorites'].map((text) => (
-              <ListItem button key={text}>
-                <ListItemText primary={text} />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ marginRight: 2, display: { sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Dashboard
+          </Typography>
+          <Button color="inherit" onClick={handleLogout}>Logout</Button>
+        </Toolbar>
+      </AppBar>
+
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+        }}
+      >
+        {drawer}
       </Drawer>
 
-      {/* Main Content */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', sm: 'block' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+        }}
+        open
+      >
+        {drawer}
+      </Drawer>
+
       <Box
         component="main"
-        sx={{ flexGrow: 1, bgcolor: 'background.default', padding: 3 }}
+        sx={{
+          flexGrow: 1,
+          padding: 3,
+          marginLeft: { sm: `${drawerWidth}px` },
+          marginTop: 8,
+        }}
       >
-        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{
-                mr: 2,
-                display: { sm: 'none' },
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              Dashboard
-            </Typography>
-            <Button color="inherit" onClick={handleLogout}>Logout</Button>
-          </Toolbar>
-        </AppBar>
-
-        <Container sx={{ marginTop: 10 }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <img
-              src={user?.picture || '/default-avatar.png'}
+        <Container>
+          <Box sx={{ textAlign: 'center', marginBottom: 5 }}>
+            <CardMedia
+              component="img"
+              image={user?.picture || '/default-avatar.png'}
               alt="User Avatar"
-              style={{ width: '100px', height: '100px', borderRadius: '50%' }}
+              sx={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                margin: '0 auto',
+              }}
             />
-            <Typography variant="h5" sx={{ marginTop: 2 }}>
-              {user?.name}
-            </Typography>
-            <Typography variant="body1" color="textSecondary">{user?.email}</Typography>
+            <Typography variant="h5" sx={{ marginTop: 2 }}>{user?.name}</Typography>
+            <Typography variant="body1" color="text.secondary">{user?.email}</Typography>
           </Box>
 
-          <Box sx={{ marginTop: 4 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>Featured Recipes</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ backgroundColor: '#fff', borderRadius: '8px', padding: 2 }}>
-                <Typography variant="h6">Pad Krapow</Typography>
-                <Typography variant="body2" color="textSecondary">A Thai classic with ground meat and basil.</Typography>
-              </Box>
-              <Box sx={{ backgroundColor: '#fff', borderRadius: '8px', padding: 2 }}>
-                <Typography variant="h6">Green Curry</Typography>
-                <Typography variant="body2" color="textSecondary">A creamy and spicy Thai green curry.</Typography>
-              </Box>
-            </Box>
+          <Box sx={{ textAlign: 'center', marginBottom: 4 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ padding: 2, fontWeight: 'bold' }}
+              onClick={handleGenerateAI} // Redirect on button click
+            >
+              Generate Recipe
+            </Button>
           </Box>
         </Container>
       </Box>
