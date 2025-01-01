@@ -10,6 +10,8 @@ import string
 import requests
 import json
 from flask_cors import CORS
+from functools import wraps
+
 
 
 
@@ -31,11 +33,39 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:NolanRobinson@loc
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Constants
+API_KEY = "AIzaSyA5WINnuzdq4-Oxb2rgEa7tQ_12JRQ5rSA"  # Replace with your actual API key
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+FINE_TUNED_MODEL_ID = "projects/gen-lang-client-0476669633/models/tunedModels/tffinetunemodel-zieqpz0zdi47"  # Replace with your fine-tuned model ID
+EXTENDED_PROMPT = "ให้สูตรอาหาร, วิธีกการทำ, ให้บอกโภชนาการทางอาหารที่ได้รับโดยประมาณจากสูตรอาหารนี้ด้วย"
+
+YOUTUBE_API_KEY = "AIzaSyBmSJ6Eq_WM3COnM9NBAQ0eM_AWMFDkOvo"  # Replace with your YouTube Data API key
+YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+
 # Initialize OAuth
 oauth = OAuth(app)
 
 # Initialize Redis connection (you may need to adjust the host and port depending on your setup)
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+def validate_session(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            session_id = request.cookies.get('session_id')
+            if not session_id:
+                return jsonify({"error": "Session ID is missing"}), 401
+
+            session_data = redis_client.get(session_id)
+            if not session_data:
+                return jsonify({"error": "Invalid or expired session"}), 401
+        except Exception as e:
+            return jsonify({"error": f"Session validation failed: {str(e)}"}), 500
+
+        # Proceed to the wrapped function if session is valid
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 # Register Google OAuth
@@ -202,6 +232,97 @@ def api_logout():
     """
     session.pop('user', None)
     return jsonify({"message": "Logged out successfully."})
+
+
+@app.route('/generate', methods=['POST'])
+@validate_session
+def generate_content():
+    try:
+        # Parse the request body
+        data = request.get_json()
+        if not data or "contents" not in data or not data["contents"]:
+            return jsonify({"error": "Prompt is required"}), 400
+
+        prompt = data["contents"][0]["parts"][0]["text"]
+        full_prompt = prompt + EXTENDED_PROMPT
+
+        # Create the request payload for the Gemini API
+        payload = {
+            "model": FINE_TUNED_MODEL_ID,
+            "contents": [
+                {
+                    "parts": [{"text": full_prompt}]
+                }
+            ]
+        }
+
+        # Make the request to the Gemini API
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(
+            f"{GEMINI_API_URL}?key={API_KEY}",
+            headers=headers,
+            json=payload
+        )
+
+        if response.status_code != 200:
+            return jsonify({"error": f"Gemini API error: {response.text}"}), 500
+
+        # Extract the generated content
+        response_data = response.json()
+        if "candidates" in response_data and response_data["candidates"]:
+            generated_content = response_data["candidates"][0]["content"]["parts"][0]["text"]
+            return jsonify({"response": generated_content}), 200
+        else:
+            return jsonify({"error": "No content generated"}), 500
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def call_gemini_api(request_payload):
+    headers = {"Content-Type": "application/json"}
+    url = f"{GEMINI_API_URL}?key={API_KEY}"
+
+    response = requests.post(url, headers=headers, data=json.dumps(request_payload))
+
+    if response.status_code != 200:
+        raise Exception(f"Gemini API error: {response.text}")
+
+    # Parse response
+    response_json = response.json()
+    if "candidates" in response_json and response_json["candidates"]:
+        return response_json["candidates"][0]["content"]["parts"][0]["text"]
+
+    raise Exception("No candidates returned from Gemini API")
+
+@app.route("/youtube", methods=["POST"])
+@validate_session
+def youtube_search():
+    data = request.get_json()
+    keyword = data.get("keyword", "")
+    if not keyword:
+        return jsonify({"error": "Keyword is required"}), 400
+
+    params = {
+        "part": "snippet",
+        "q": keyword,
+        "type": "video",
+        "maxResults": 5,  # Adjust the number of results as needed
+        "key": YOUTUBE_API_KEY,
+    }
+
+    response = requests.get(YOUTUBE_SEARCH_URL, params=params)
+    if response.status_code != 200:
+        return jsonify({"error": "Failed to fetch YouTube data"}), 500
+
+    youtube_data = response.json()
+    videos = [
+        {"id": item["id"]["videoId"], "title": item["snippet"]["title"]}
+        for item in youtube_data.get("items", [])
+    ]
+
+    return jsonify({"videos": videos})
+
 
 
 if __name__ == '__main__':
