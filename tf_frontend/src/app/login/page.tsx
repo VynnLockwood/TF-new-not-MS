@@ -21,7 +21,7 @@ const LoginPage = () => {
     try {
       setLoading(true);
       // Open the Flask backend login route in a new tab
-      window.open('http://localhost:5000/login', '_blank');
+      window.open('http://localhost:5000/auth/login', '_blank');
     } catch (err) {
       setError('An error occurred while trying to log in.');
       setLoading(false);

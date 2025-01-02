@@ -40,7 +40,7 @@ const GeneratePage = () => {
   
     try {
       // First request to generate menu name and recipe
-      const generateRes = await fetch("http://localhost:5000/generate", {
+      const generateRes = await fetch("http://localhost:5000/gemini/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ const GeneratePage = () => {
       sessionStorage.setItem("youtubeSearchKeyword", keyword);
   
       // Second request to fetch YouTube videos
-      const youtubeRes = await fetch("http://localhost:5000/youtube", {
+      const youtubeRes = await fetch("http://localhost:5000/youtube/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
