@@ -30,7 +30,7 @@ const Dashboard = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/auth/check', {
+        const response = await fetch('http://localhost:5000/auth/check', {
           method: 'GET',
           credentials: 'include',
         });
