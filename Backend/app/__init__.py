@@ -54,4 +54,7 @@ def create_app():
     from app.routes.youtube import youtube_bp
     app.register_blueprint(youtube_bp, url_prefix='/youtube')
 
+    from app.routes.based_recipes import based_recipes
+    app.register_blueprint(based_recipes, url_prefix='/based')
+
     return app
