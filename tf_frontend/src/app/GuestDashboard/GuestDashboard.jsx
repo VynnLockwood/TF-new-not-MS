@@ -102,25 +102,7 @@ const GuestDashboard = () => {
 
   return (
     <Box>
-      {/* App Bar
-      <AppBar position="static" sx={{ backgroundColor: 'white', color: 'black' }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Box display="flex" alignItems="center">
-            <img
-              src="https://i.postimg.cc/sX2ntz2w/Wok-Asian-Food-Logo.png"
-              alt="Thai Foods Logo"
-              style={{ height: '40px', marginRight: '16px' }}
-            />
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              THAI FOODS
-            </Typography>
-          </Box>
-          <Box display="flex" gap={3}>
-            <Button href="/login">สร้างสูตรอาหารของคุณ</Button>
-            <Button href="/login">เข้าสู่ระบบ</Button>
-          </Box>
-        </Toolbar>
-      </AppBar> */}
+    
 
       {/* Hero Section */}
       <Box
