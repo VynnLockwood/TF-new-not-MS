@@ -14,49 +14,64 @@ import {
   CardContent,
   CardActions,
   Grid,
+  Avatar,
+  CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 
-
-const GuestDashboard = () => {
+const Dashboard = () => {
+  const [user, setUser] = useState(null); // Logged-in user details
   const [allRecipes, setAllRecipes] = useState([]); // Store all recipes
   const [recipes, setRecipes] = useState([]); // Displayed recipes
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-
-  const heroImages = [
-    // Array of hero images
-    'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8VGhhaWZvb2R8ZW58MHx8MHx8fDA%3D',
-    // Add other image URLs here
-  ];
   const [heroImage, setHeroImage] = useState('');
 
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
+
+  const heroImages = [
+    'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60',
+    // Add more image URLs if needed
+  ];
 
   useEffect(() => {
-    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)]); // Random image on render
+    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)]);
 
-    const fetchRecipes = async () => {
+    const fetchUserAndRecipes = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/based/recipes`);
-    
-        if (!response.ok) {
-          throw new Error('Failed to fetch recipes');
+        // Check user session
+        const userResponse = await fetch('http://localhost:5000/auth/check', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        const userData = await userResponse.json();
+        if (userData.valid) {
+          setUser({
+            name: userData.user.name,
+            email: userData.user.email,
+            picture: userData.user.picture || '/default-avatar.png',
+          });
+        } else {
+          router.push('/login?error=invalid_session');
+          return;
         }
-    
-        const data = await response.json();
-    
-        // Add unique IDs to recipes
-        const recipesWithIds = data.map((recipe) => ({
+
+        // Fetch recipes
+        const recipeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/based/recipes`);
+        if (!recipeResponse.ok) throw new Error('Failed to fetch recipes');
+        const recipeData = await recipeResponse.json();
+
+        const recipesWithIds = recipeData.map((recipe) => ({
           ...recipe,
-          id: uuidv4(), // Generate a unique ID
+          id: uuidv4(),
         }));
-    
-        setAllRecipes(recipesWithIds); // Store recipes with IDs
+
+        setAllRecipes(recipesWithIds);
         localStorage.setItem('allRecipes', JSON.stringify(recipesWithIds));
-        setRecipes(recipesWithIds.slice(0, 6)); // Show first 6 recipes
+        setRecipes(recipesWithIds.slice(0, 6));
       } catch (error) {
         console.error(error);
       } finally {
@@ -64,8 +79,8 @@ const GuestDashboard = () => {
       }
     };
 
-    fetchRecipes();
-  }, []);
+    fetchUserAndRecipes();
+  }, [router]);
 
   const handleSearch = (event) => {
     const query = event.target.value.toLowerCase();
@@ -74,35 +89,41 @@ const GuestDashboard = () => {
     const filteredRecipes = allRecipes.filter((recipe) =>
       recipe.recipeName.toLowerCase().includes(query)
     );
-    setRecipes(filteredRecipes.slice(0, 6)); // Display first 6 matching recipes
+    setRecipes(filteredRecipes.slice(0, 6));
   };
 
   const handleViewRecipe = (recipe) => {
-    if (!recipe) {
-      console.error("Invalid recipe data:", recipe);
-      return;
-    }
-  
-    // Save the recipe data to localStorage or sessionStorage
+    if (!recipe) return;
+
     localStorage.setItem('selectedRecipe', JSON.stringify(recipe));
-  
-    // Navigate to the next page
     router.push(`/foodview/guests/${recipe.id}`);
   };
-  
-  
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:5000/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      router.push('/login');
+    } catch {
+      router.push('/login');
+    }
+  };
 
   if (loading) {
     return (
       <Box sx={{ textAlign: 'center', padding: 5 }}>
-        <Typography variant="h6">Loading...</Typography>
+        <CircularProgress />
+        <Typography variant="h6" sx={{ marginTop: 2 }}>
+          Loading...
+        </Typography>
       </Box>
     );
   }
 
   return (
     <Box>
-    
 
       {/* Hero Section */}
       <Box
@@ -176,4 +197,4 @@ const GuestDashboard = () => {
   );
 };
 
-export default GuestDashboard;
+export default Dashboard;

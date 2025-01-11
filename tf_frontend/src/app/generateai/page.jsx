@@ -49,7 +49,7 @@ const GeneratePage = () => {
   const handleGenerate = async () => {
     setLoading(true);
     setError("");
-
+  
     try {
       // First request to generate menu name and recipe
       const generateRes = await fetch("http://localhost:5000/gemini/generate", {
@@ -62,40 +62,41 @@ const GeneratePage = () => {
         }),
         credentials: "include",
       });
-
+  
       if (generateRes.status === 401) {
         // If session is invalid, show the dialog
         setOpenDialog(true);
         setLoading(false);
         return;
       }
-
+  
       if (!generateRes.ok) {
         const errorData = await generateRes.json();
         throw new Error(errorData.error || "Something went wrong in recipe generation");
       }
-
+  
       const generateData = await generateRes.json();
-
+  
       // Save the whole response for debugging
       sessionStorage.setItem("fullGeneratedResponse", generateData.response);
-
+  
       // Parse the response
       const { menuName, ingredients, instructions } = parseRecipeResponse(generateData.response);
-
+  
       if (!menuName || menuName.trim() === "") {
         throw new Error("Failed to generate a valid recipe. Please try again.");
       }
-
-      // Save the parsed data in sessionStorage
+  
+      // Simplify the menu name for YouTube search
+      const simplifiedMenuName = menuName.replace(/\(.*?\)/g, "").trim(); // Remove content inside parentheses
+      const keyword = `วิธีทำ${simplifiedMenuName}`; // Add "วิธีทำ" prefix without spaces
+  
+      // Save data in sessionStorage
       sessionStorage.setItem("generatedMenuName", menuName);
       sessionStorage.setItem("generatedIngredients", JSON.stringify(ingredients));
       sessionStorage.setItem("generatedInstructions", JSON.stringify(instructions));
-
-      // Create the YouTube search keyword
-      const keyword = `วิธีทำ ${menuName}`;
       sessionStorage.setItem("youtubeSearchKeyword", keyword);
-
+  
       // Second request to fetch YouTube videos
       const youtubeRes = await fetch("http://localhost:5000/youtube/search", {
         method: "POST",
@@ -107,25 +108,25 @@ const GeneratePage = () => {
           keyword,
         }),
       });
-
+  
       if (youtubeRes.status === 401) {
         // If session is invalid, show the dialog
         setOpenDialog(true);
         setLoading(false);
         return;
       }
-
+  
       if (!youtubeRes.ok) {
         const errorData = await youtubeRes.json();
         throw new Error(errorData.error || "Something went wrong in YouTube video search");
       }
-
+  
       const youtubeData = await youtubeRes.json();
       const videos = youtubeData.videos || [];
-
+  
       // Save videos to sessionStorage
       sessionStorage.setItem("youtubeVideos", JSON.stringify(videos));
-
+  
       // Redirect to /food_generated if all data is valid
       if (menuName && ingredients.length > 0 && instructions.length > 0 && videos.length > 0) {
         router.push(`/food_generated?menuName=${encodeURIComponent(menuName)}`);
@@ -140,6 +141,7 @@ const GeneratePage = () => {
       setLoading(false);
     }
   };
+  
 
   const handleCloseDialog = () => {
     setOpenDialog(false);

@@ -54,9 +54,10 @@ def authorize():
             value=f"user:{user.id}",
             max_age=3600,
             httponly=True,
-            secure=False,
+            secure=False,  # Ensure this is False for localhost
             samesite='Lax'
         )
+
         print(f"Cookie set: session_id=user:{user.id}")
 
 
