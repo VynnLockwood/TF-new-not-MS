@@ -2,78 +2,66 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  AppBar,
-  Toolbar,
   Box,
-  IconButton,
   Typography,
   TextField,
+  IconButton,
   Button,
   Card,
   CardMedia,
   CardContent,
   CardActions,
   Grid,
-  Avatar,
   CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import LogoutIcon from '@mui/icons-material/Logout';
 import { useRouter } from 'next/navigation';
-import { v4 as uuidv4 } from 'uuid';
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null); // Logged-in user details
-  const [allRecipes, setAllRecipes] = useState([]); // Store all recipes
-  const [recipes, setRecipes] = useState([]); // Displayed recipes
+  const [user, setUser] = useState(null);
+  const [allRecipes, setAllRecipes] = useState([]);
+  const [recipes, setRecipes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [heroImage, setHeroImage] = useState('');
-
   const router = useRouter();
 
-  const heroImages = [
-    'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60',
-    // Add more image URLs if needed
-  ];
-
   useEffect(() => {
-    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)]);
-
     const fetchUserAndRecipes = async () => {
       try {
-        // Check user session
+        // Check user authentication
         const userResponse = await fetch('http://localhost:5000/auth/check', {
           method: 'GET',
           credentials: 'include',
         });
         const userData = await userResponse.json();
-        if (userData.valid) {
-          setUser({
-            name: userData.user.name,
-            email: userData.user.email,
-            picture: userData.user.picture || '/default-avatar.png',
-          });
-        } else {
+
+        if (!userData.valid) {
           router.push('/login?error=invalid_session');
           return;
         }
 
-        // Fetch recipes
-        const recipeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/based/recipes`);
+        // Set user data
+        setUser({
+          name: userData.user.name,
+          email: userData.user.email,
+          picture: userData.user.picture || '/default-avatar.png',
+        });
+
+        // Fetch recipes from `/recipes`
+        const recipeResponse = await fetch('http://localhost:5000/api/recipes', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
         if (!recipeResponse.ok) throw new Error('Failed to fetch recipes');
+
         const recipeData = await recipeResponse.json();
 
-        const recipesWithIds = recipeData.map((recipe) => ({
-          ...recipe,
-          id: uuidv4(),
-        }));
-
-        setAllRecipes(recipesWithIds);
-        localStorage.setItem('allRecipes', JSON.stringify(recipesWithIds));
-        setRecipes(recipesWithIds.slice(0, 6));
+        // Set recipes for display and suggestions
+        setAllRecipes(recipeData);
+        setRecipes(recipeData.slice(0, 6)); // Show initial recipes
       } catch (error) {
-        console.error(error);
+        console.error(error.message);
       } finally {
         setLoading(false);
       }
@@ -86,29 +74,15 @@ const Dashboard = () => {
     const query = event.target.value.toLowerCase();
     setSearchQuery(query);
 
+    // Filter recipes based on search query
     const filteredRecipes = allRecipes.filter((recipe) =>
-      recipe.recipeName.toLowerCase().includes(query)
+      recipe.name.toLowerCase().includes(query)
     );
     setRecipes(filteredRecipes.slice(0, 6));
   };
 
-  const handleViewRecipe = (recipe) => {
-    if (!recipe) return;
-
-    localStorage.setItem('selectedRecipe', JSON.stringify(recipe));
-    router.push(`/foodview/guests/${recipe.id}`);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch('http://localhost:5000/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      router.push('/login');
-    } catch {
-      router.push('/login');
-    }
+  const handleViewRecipe = (recipeId) => {
+    router.push(`/foodview/users/${recipeId}`); // Redirect to user's recipe page
   };
 
   if (loading) {
@@ -124,23 +98,21 @@ const Dashboard = () => {
 
   return (
     <Box>
-
       {/* Hero Section */}
       <Box
         sx={{
-          backgroundImage: `url(${heroImage})`,
+          backgroundImage: 'url(https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           height: '300px',
         }}
       />
-
       {/* Search Field */}
       <Box sx={{ padding: 3, textAlign: 'center' }}>
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="ค้นหาสูตรอาหาร"
+          placeholder="Search Recipes"
           value={searchQuery}
           onChange={handleSearch}
           InputProps={{
@@ -152,40 +124,34 @@ const Dashboard = () => {
           }}
         />
       </Box>
-
-      {/* Recommended Recipes */}
+      {/* Recipes */}
       <Box sx={{ padding: 4 }}>
         <Typography variant="h5" sx={{ fontWeight: 'bold', marginBottom: 3 }}>
-          สูตรอาหารที่แนะนำ!
+          Recommended Recipes
         </Typography>
         <Grid container spacing={3}>
-          {recipes.map((recipe, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <Card sx={{ maxWidth: 345 }}>
+          {recipes.map((recipe) => (
+            <Grid item xs={12} sm={6} md={4} key={recipe.id}>
+              <Card>
                 <CardMedia
                   component="img"
                   height="140"
-                  image={recipe.imageURL || 'https://via.placeholder.com/150'}
-                  alt={recipe.recipeName}
+                  image={recipe.cover_image || 'https://via.placeholder.com/400'}
+                  alt={recipe.name}
                 />
                 <CardContent>
-                  <Typography variant="h6">{recipe.recipeName}</Typography>
+                  <Typography variant="h6">{recipe.name}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {recipe.likes || 0} Like
-                    <br />
-                    {recipe.comments || 0} Comment
+                    {recipe.likes || 0} Likes <br />
+                    {recipe.comments?.length || 0} Comments
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button
-                    size="small"
-                    color="primary"
-                    onClick={() => handleViewRecipe(recipe)}
-                  >
-                    View
+                  <Button size="small" color="primary" onClick={() => handleViewRecipe(recipe.id)}>
+                    View Recipe
                   </Button>
                   <Button size="small" color="primary">
-                    Rate: {recipe.rating || 0} ⭐
+                    Rating: {recipe.average_rating || 0} ⭐
                   </Button>
                 </CardActions>
               </Card>

@@ -19,6 +19,7 @@ class Recipe(db.Model):
     likes = db.relationship('Like', back_populates='recipe', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', back_populates='recipe', lazy='dynamic', cascade="all, delete-orphan")
     favorites = db.relationship('Favorite', back_populates='recipe', lazy='dynamic', cascade="all, delete-orphan")
+    related_videos = db.relationship('RelatedVideo', back_populates='recipe', lazy='dynamic', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Recipe {self.name}>"
@@ -80,3 +81,15 @@ class Favorite(db.Model):
 
     def __repr__(self):
         return f"<Favorite by User {self.user_id} for Recipe {self.recipe_id}>"
+
+class RelatedVideo(db.Model):
+    __tablename__ = 'related_videos'
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+
+    recipe = db.relationship('Recipe', back_populates='related_videos')
+
+    def __repr__(self):
+        return f"<RelatedVideo {self.title}>"

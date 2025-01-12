@@ -105,6 +105,9 @@ const Navbar = () => {
           <Button color="inherit" onClick={() => router.push('/generateai')}>
             สร้างสูตรอาหาร
           </Button>
+          <Button color="inherit" onClick={() => router.push('/foodview/available')}>
+            รวมสูตรอาหาร
+          </Button>
         </Box>
 
         {/* Mobile Menu */}
@@ -123,6 +126,7 @@ const Navbar = () => {
           >
             <MenuItem onClick={() => navigateTo('/')}>หน้าแรก</MenuItem>
             <MenuItem onClick={() => navigateTo('/generateai')}>สร้างสูตรอาหาร</MenuItem>
+            <MenuItem onClick={() => navigateTo('/foodview/available')}>สร้างสูตรอาหาร</MenuItem>
           </Menu>
         </Box>
 

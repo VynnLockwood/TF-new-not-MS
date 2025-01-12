@@ -320,6 +320,10 @@ const FoodGenerated = () => {
           ingredients,
           instructions,
           cover_image: coverImage,
+          videos: videos.map((video) => ({
+            title: video.title,
+            url: `https://www.youtube.com/watch?v=${video.id}`,
+          })),
         }),
       });
 
@@ -330,14 +334,15 @@ const FoodGenerated = () => {
         throw new Error(data.error || "Failed to submit recipe");
       }
 
-      alert("Recipe submitted successfully!");
+      alert("Recipe and related videos submitted successfully!");
     } catch (error) {
       console.error("Error during fetch:", error);
     }
   }}
 >
   Submit Recipe
-</Button>;
+</Button>
+
 
 
 

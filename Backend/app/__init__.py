@@ -70,6 +70,6 @@ def create_app():
     app.register_blueprint(imgur_bp, url_prefix="/api/imgur")
 
     from app.routes.recipe import recipe_bp  # Import the recipe blueprint
-    app.register_blueprint(recipe_bp, url_prefix="/api/recipes")
+    app.register_blueprint(recipe_bp, url_prefix="/api")
 
     return app
