@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   TextField,
-  IconButton,
   Button,
   Card,
   CardMedia,
@@ -13,16 +12,21 @@ import {
   CardActions,
   Grid,
   CircularProgress,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useRouter } from 'next/navigation';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
-  const [allRecipes, setAllRecipes] = useState([]);
   const [recipes, setRecipes] = useState([]);
+  const [tags, setTags] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,7 +51,7 @@ const Dashboard = () => {
           picture: userData.user.picture || '/default-avatar.png',
         });
 
-        // Fetch recipes from `/recipes`
+        // Fetch recipes, tags, and categories
         const recipeResponse = await fetch('http://localhost:5000/api/recipes', {
           method: 'GET',
           credentials: 'include',
@@ -55,11 +59,13 @@ const Dashboard = () => {
 
         if (!recipeResponse.ok) throw new Error('Failed to fetch recipes');
 
-        const recipeData = await recipeResponse.json();
+        const { recipes: fetchedRecipes, tags: fetchedTags, categories: fetchedCategories } =
+          await recipeResponse.json();
 
-        // Set recipes for display and suggestions
-        setAllRecipes(recipeData);
-        setRecipes(recipeData.slice(0, 6)); // Show initial recipes
+        // Update state with API response
+        setRecipes(fetchedRecipes.slice(0, 6)); // Show initial recipes
+        setTags(fetchedTags || []);
+        setCategories(fetchedCategories || []);
       } catch (error) {
         console.error(error.message);
       } finally {
@@ -70,19 +76,39 @@ const Dashboard = () => {
     fetchUserAndRecipes();
   }, [router]);
 
-  const handleSearch = (event) => {
-    const query = event.target.value.toLowerCase();
-    setSearchQuery(query);
+  const handleSearchClick = async () => {
+    if (!searchQuery.trim() && !selectedCategory) {
+      setRecipes([]); // Reset recipes if no search query or category
+      return;
+    }
 
-    // Filter recipes based on search query
-    const filteredRecipes = allRecipes.filter((recipe) =>
-      recipe.name.toLowerCase().includes(query)
-    );
-    setRecipes(filteredRecipes.slice(0, 6));
+    setSearching(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/recipes?${new URLSearchParams({
+          query: searchQuery,
+          category: selectedCategory,
+        }).toString()}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to search recipes');
+
+      const searchResults = await response.json();
+      setRecipes(searchResults.recipes || []);
+    } catch (error) {
+      console.error('Error during search:', error.message);
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleViewRecipe = (recipeId) => {
-    router.push(`/foodview/users/${recipeId}`); // Redirect to user's recipe page
+    router.push(`/foodview/users/${recipeId}`);
   };
 
   if (loading) {
@@ -98,31 +124,36 @@ const Dashboard = () => {
 
   return (
     <Box>
-      {/* Hero Section */}
-      <Box
-        sx={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          height: '300px',
-        }}
-      />
-      {/* Search Field */}
-      <Box sx={{ padding: 3, textAlign: 'center' }}>
+      {/* Filters */}
+      <Box sx={{ padding: 3, textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 2 }}>
         <TextField
-          fullWidth
           variant="outlined"
           placeholder="Search Recipes"
           value={searchQuery}
-          onChange={handleSearch}
-          InputProps={{
-            endAdornment: (
-              <IconButton>
-                <SearchIcon />
-              </IconButton>
-            ),
-          }}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <Select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          displayEmpty
+          sx={{ minWidth: 150 }}
+        >
+          <MenuItem value="">All Categories</MenuItem>
+          {categories.map((category, index) => (
+            <MenuItem key={index} value={category}>
+              {category}
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSearchClick}
+          startIcon={<SearchIcon />}
+          disabled={searching}
+        >
+          {searching ? 'Searching...' : 'Search'}
+        </Button>
       </Box>
       {/* Recipes */}
       <Box sx={{ padding: 4 }}>
@@ -130,33 +161,33 @@ const Dashboard = () => {
           Recommended Recipes
         </Typography>
         <Grid container spacing={3}>
-          {recipes.map((recipe) => (
-            <Grid item xs={12} sm={6} md={4} key={recipe.id}>
-              <Card>
-                <CardMedia
-                  component="img"
-                  height="140"
-                  image={recipe.cover_image || 'https://via.placeholder.com/400'}
-                  alt={recipe.name}
-                />
-                <CardContent>
-                  <Typography variant="h6">{recipe.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {recipe.likes || 0} Likes <br />
-                    {recipe.comments?.length || 0} Comments
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <Button size="small" color="primary" onClick={() => handleViewRecipe(recipe.id)}>
-                    View Recipe
-                  </Button>
-                  <Button size="small" color="primary">
-                    Rating: {recipe.average_rating || 0} ⭐
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
+          {recipes.length > 0 ? (
+            recipes.map((recipe) => (
+              <Grid item xs={12} sm={6} md={4} key={recipe.id}>
+                <Card>
+                  <CardMedia
+                    component="img"
+                    height="140"
+                    image={recipe.cover_image || 'https://via.placeholder.com/400'}
+                    alt={recipe.name}
+                  />
+                  <CardContent>
+                    <Typography variant="h6">{recipe.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Category: {recipe.category || 'Uncategorized'}
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button size="small" color="primary" onClick={() => handleViewRecipe(recipe.id)}>
+                      View Recipe
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))
+          ) : (
+            <Typography variant="body1">No recipes available.</Typography>
+          )}
         </Grid>
       </Box>
     </Box>

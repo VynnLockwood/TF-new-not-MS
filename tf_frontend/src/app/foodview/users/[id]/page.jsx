@@ -45,6 +45,13 @@ const RecipeDetailPage = () => {
     return [];
   };
 
+  const splitTags = (tags) => {
+    if (!tags || !Array.isArray(tags)) return []; // Ensure it's an array
+    if (tags.length === 0) return []; // Handle empty arrays
+    return tags[0].split(',').map((tag) => tag.trim()); // Split the first string in the array
+};
+
+
   useEffect(() => {
     const fetchRecipeData = async () => {
       try {
@@ -160,25 +167,53 @@ const RecipeDetailPage = () => {
   return (
     <Box sx={{ padding: '2rem', backgroundColor: '#f9f9f9', minHeight: '100vh' }}>
       <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.5rem',
-          textAlign: 'center',
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#444' }}
-        >
-          {recipe.name}
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Created by: {recipe.created_by_name || 'Anonymous'} |{' '}
-          {new Date(recipe.created_at).toLocaleDateString()}
-        </Typography>
-      </Box>
+  sx={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+    textAlign: 'center',
+  }}
+>
+  <Typography
+    variant="h4"
+    sx={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#444' }}
+  >
+    {recipe.name}
+  </Typography>
+  <Typography variant="body2" color="textSecondary">
+    Created by: {recipe.created_by_name || 'Anonymous'} |{' '}
+    {new Date(recipe.created_at).toLocaleDateString()}
+  </Typography>
+
+  <Typography variant="body1" color="textPrimary" sx={{ marginTop: '0.5rem' }}>
+    <strong>Category:</strong> {recipe.category || 'Uncategorized'}
+  </Typography>
+
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+  {splitTags(recipe.tags).map((tag, index) => (
+    <Typography
+      key={index}
+      onClick={() => router.push(`/foodview/tags/${encodeURIComponent(tag)}`)}
+      sx={{
+        backgroundColor: '#e0f7fa',
+        color: '#00796b',
+        padding: '0.5rem 1rem',
+        borderRadius: '16px',
+        fontSize: '0.875rem',
+        cursor: 'pointer',
+        '&:hover': { backgroundColor: '#b2ebf2' },
+      }}
+    >
+      {tag}
+    </Typography>
+  ))}
+</Box>
+
+
+
+</Box>
+
 
       <Grid container spacing={4} sx={{ marginTop: '1rem' }}>
         <Grid item xs={12} md={6}>

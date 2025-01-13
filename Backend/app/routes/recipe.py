@@ -42,12 +42,21 @@ def submit_recipe():
         ingredients = "\n".join(data["ingredients"]) if isinstance(data["ingredients"], list) else data["ingredients"]
         instructions = "\n".join(data["instructions"]) if isinstance(data["instructions"], list) else data["instructions"]
 
+        # Sanitize and handle category and tags
+        category = data.get("category", "").strip()  # Use default empty string if not provided
+        tags = data.get("tags", [])  # Default to an empty list if not provided
+        if isinstance(tags, list):
+            # Convert tags to a comma-separated string for storage
+            tags = ",".join([tag.strip() for tag in tags])
+
         # Create and store the recipe
         recipe = Recipe(
             name=data["name"],
             cover_image=data.get("cover_image", ""),
             ingredients=ingredients,  # Store as plain text
             instructions=instructions,  # Store as plain text
+            category=category,  # Store the category
+            tags=tags,  # Store the tags as a string
             created_by=user.id,
             created_at=datetime.utcnow(),
         )
@@ -227,16 +236,34 @@ def comment_recipe(recipe_id):
 
 @recipe_bp.route("/recipes", methods=["GET"])
 def get_recipes():
+    """
+    Fetch all recipes or filter by tag and/or category.
+    """
     try:
         def decode_or_split(data):
+            if not data:  # If data is None or empty
+                return []  # Return an empty list for None or empty values
             try:
                 # Attempt to decode as JSON
                 return json.loads(data)
             except json.JSONDecodeError:
-                # If not JSON, treat it as plain text and split by newline
-                return data.split("\n")
+                # If not JSON, treat it as plain text and split by commas
+                return [tag.strip() for tag in data.split(",") if tag.strip()]
 
-        recipes = Recipe.query.all()
+        # Get optional query parameters
+        tag = request.args.get("tag")
+        category = request.args.get("category")
+
+        # Build query based on filters
+        query = Recipe.query
+        if category:
+            query = query.filter(Recipe.category.ilike(f"%{category}%"))  # Case-insensitive match
+        if tag:
+            query = query.filter(Recipe.tags.contains(tag))  # Assuming `tags` is a JSON or text column
+
+        # Fetch filtered recipes
+        recipes = query.all()
+
         response = [
             {
                 "id": recipe.id,
@@ -244,24 +271,26 @@ def get_recipes():
                 "cover_image": recipe.cover_image,
                 "ingredients": decode_or_split(recipe.ingredients),  # Decode or split
                 "instructions": decode_or_split(recipe.instructions),  # Decode or split
+                "category": recipe.category or "Uncategorized",  # Default to 'Uncategorized' if None
+                "tags": decode_or_split(recipe.tags) or ["No Tags"],  # Default to ['No Tags'] if None
                 "created_by": recipe.created_by,
                 "created_at": recipe.created_at,
                 "creator_name": recipe.user.name if recipe.user else "Anonymous",  # Fetch creator's name
             }
             for recipe in recipes
         ]
-        return jsonify(response), 200
+
+        return jsonify({"recipes": response, "tags": list(set(tag for recipe in recipes for tag in decode_or_split(recipe.tags))), "categories": list(set(recipe.category or "Uncategorized" for recipe in recipes))}), 200
     except Exception as e:
         current_app.logger.error(f"Error in /recipes: {e}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": "Internal server error"}), 500
 
 
-
 @recipe_bp.route("/recipes/<int:recipe_id>", methods=["GET"])
 def get_recipe_by_id(recipe_id):
     """
-    Fetch a specific recipe by its ID along with related videos, likes, comments, and ratings.
+    Fetch a specific recipe by its ID along with related videos, likes, comments, ratings, tags, and category.
     """
     try:
         def decode_or_split(data):
@@ -304,6 +333,9 @@ def get_recipe_by_id(recipe_id):
         ratings = [rating.score for rating in recipe.ratings]
         average_rating = sum(ratings) / len(ratings) if ratings else 0
 
+        # Decode or split tags
+        tags = decode_or_split(recipe.tags) if recipe.tags else []
+
         # Prepare the response
         response = {
             "id": recipe.id,
@@ -312,7 +344,10 @@ def get_recipe_by_id(recipe_id):
             "ingredients": decode_or_split(recipe.ingredients),  # Decode or split
             "instructions": decode_or_split(recipe.instructions),  # Decode or split
             "created_by": recipe.created_by,
+            "created_by_name": recipe.user.name if recipe.user else "Anonymous",  # Assuming a relationship exists
             "created_at": recipe.created_at,
+            "category": recipe.category or "Uncategorized",  # Add category field
+            "tags": tags,  # Add tags field
             "related_videos": related_videos,
             "likes": likes_count,
             "comments": comments,
@@ -324,6 +359,7 @@ def get_recipe_by_id(recipe_id):
         current_app.logger.error(f"Error in /recipes/{recipe_id}: {e}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @recipe_bp.route("/recipes/<int:recipe_id>/related_videos", methods=["GET"])
@@ -430,3 +466,66 @@ def get_suggested_recipes(recipe_id):
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": "Internal server error"}), 500
 
+@recipe_bp.route("/recipes/search", methods=["GET"])
+def search_recipes():
+    """
+    Search for recipes by query.
+    """
+    try:
+        # Retrieve the search query from the request
+        query = request.args.get("query", "").strip().lower()
+
+        if not query:
+            return jsonify({"error": "Search query is required"}), 400
+
+        # Perform the search (use ilike for case-insensitive partial matching)
+        recipes_query = Recipe.query.filter(Recipe.name.ilike(f"%{query}%"))
+        recipes = recipes_query.all()  # Resolve the query into a list
+
+        if not recipes:
+            return jsonify([]), 200  # Return an empty list if no recipes are found
+
+        # Helper function to safely parse JSON or return default
+        def safe_json_load(data, default):
+            if not data or not isinstance(data, str):
+                return default
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
+                return default
+
+        # Format the response
+        response = []
+        for recipe in recipes:
+            # Resolve dynamic relationships like ratings, likes, comments, and favorites
+            resolved_likes = recipe.likes.count()
+            resolved_comments = recipe.comments.count()
+            resolved_ratings = recipe.ratings.all()
+            resolved_favorites = recipe.favorites.count()
+
+            # Calculate average rating if ratings are available
+            average_rating = (
+                sum(rating.value for rating in resolved_ratings) / len(resolved_ratings)
+                if resolved_ratings else 0
+            )
+
+            # Append the recipe details
+            response.append({
+                "id": recipe.id,
+                "name": recipe.name,
+                "cover_image": recipe.cover_image,
+                "ingredients": safe_json_load(recipe.ingredients, []),  # Safely parse JSON
+                "instructions": safe_json_load(recipe.instructions, []),  # Safely parse JSON
+                "category": recipe.category,
+                "tags": safe_json_load(recipe.tags, []),  # Safely parse JSON
+                "likes": resolved_likes,
+                "comments": resolved_comments,
+                "average_rating": average_rating,
+                "favorites": resolved_favorites,
+            })
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in search_recipes: {e}")
+        return jsonify({"error": "Internal server error"}), 500
