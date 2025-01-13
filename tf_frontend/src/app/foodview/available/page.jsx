@@ -11,6 +11,11 @@ import {
   Button,
   Grid,
   CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +23,10 @@ const AvailableRecipesPage = () => {
   const [recipes, setRecipes] = useState([]); // State for all recipes
   const [loading, setLoading] = useState(true); // Loading state
   const [error, setError] = useState(''); // Error state
+  const [selectedTag, setSelectedTag] = useState(''); // Selected tag
+  const [selectedCategory, setSelectedCategory] = useState(''); // Selected category
+  const [tags, setTags] = useState([]); // Available tags
+  const [categories, setCategories] = useState([]); // Available categories
 
   const router = useRouter();
 
@@ -25,7 +34,14 @@ const AvailableRecipesPage = () => {
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/recipes', {
+        setLoading(true);
+
+        // Build query parameters
+        const query = new URLSearchParams();
+        if (selectedTag) query.append('tag', selectedTag);
+        if (selectedCategory) query.append('category', selectedCategory);
+
+        const response = await fetch(`http://localhost:5000/api/recipes?${query.toString()}`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -36,7 +52,9 @@ const AvailableRecipesPage = () => {
         }
 
         const data = await response.json();
-        setRecipes(data); // Set the recipes state
+        setRecipes(data.recipes || []); // Set the recipes state
+        setTags(data.tags || []); // Set available tags if provided in API
+        setCategories(data.categories || []); // Set available categories if provided in API
       } catch (err) {
         setError(err.message);
       } finally {
@@ -45,7 +63,7 @@ const AvailableRecipesPage = () => {
     };
 
     fetchRecipes();
-  }, []);
+  }, [selectedTag, selectedCategory]); // Refetch when tag or category changes
 
   if (loading) {
     return (
@@ -78,6 +96,38 @@ const AvailableRecipesPage = () => {
       <Typography variant="h4" sx={{ fontWeight: 'bold', marginBottom: '1.5rem', textAlign: 'center' }}>
         Available Recipes
       </Typography>
+
+      {/* Filters */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: '2rem' }}>
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel>Category</InputLabel>
+          <Select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            label="Category"
+          >
+            <MenuItem value="">All Categories</MenuItem>
+            {categories.map((category, index) => (
+              <MenuItem key={index} value={category}>
+                {category}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ minWidth: 150 }}>
+          <InputLabel>Tag</InputLabel>
+          <Select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)} label="Tag">
+            <MenuItem value="">All Tags</MenuItem>
+            {tags.map((tag, index) => (
+              <MenuItem key={index} value={tag}>
+                {tag}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Recipes */}
       <Grid container spacing={2}>
         {recipes.map((recipe) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
@@ -95,11 +145,34 @@ const AvailableRecipesPage = () => {
                 <Typography variant="body2" color="textSecondary">
                   Created by {recipe.creator_name || 'Anonymous'}
                 </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Category: {recipe.category || 'Uncategorized'}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginTop: '0.5rem' }}>
+                  {recipe.tags &&
+                    (Array.isArray(recipe.tags) ? recipe.tags : recipe.tags.split(',')).map((tag, index) => (
+                      <Chip
+                        key={index}
+                        label={tag.trim()} // Ensure no extra spaces around tags
+                        onClick={() => {
+                          router.push(`/foodview/tags/${encodeURIComponent(tag.trim())}`);
+                        }}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': { backgroundColor: '#e0f7fa' },
+                        }}
+                      />
+                    ))}
+                </Box>
+
               </CardContent>
               <CardActions>
                 <Button
                   size="small"
-                  onClick={() => router.push(`/foodview/users/${recipe.id}`)}
+                  onClick={() => {
+                    router.push(`/foodview/users/${recipe.id}`);
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); // Smooth scroll to the top
+                  }}
                   color="primary"
                   variant="outlined"
                 >

@@ -27,6 +27,9 @@ const GeneratePage = () => {
     let menuName = "";
     const ingredients = [];
     const instructions = [];
+    let category = "";
+    const tags = ["AI generate"]; // Default tag
+
     let section = "";
 
     lines.forEach((line) => {
@@ -36,6 +39,16 @@ const GeneratePage = () => {
         section = "ingredients";
       } else if (line.includes("วิธีทำ:") || line.includes("Instructions:")) {
         section = "instructions";
+      } else if (line.includes("Category:") || line.includes("หมวดหมู่:")) {
+        category = line.replace("Category:", "").replace("หมวดหมู่:", "").trim();
+      } else if (line.includes("Tags:") || line.includes("แท็ก:")) {
+        tags.push(
+          ...line
+            .replace("Tags:", "")
+            .replace("แท็ก:", "")
+            .split(",")
+            .map((tag) => tag.trim())
+        );
       } else if (section === "ingredients") {
         if (line) ingredients.push(line);
       } else if (section === "instructions") {
@@ -43,97 +56,135 @@ const GeneratePage = () => {
       }
     });
 
-    return { menuName, ingredients, instructions };
+    return { menuName, ingredients, instructions, category, tags };
   };
 
   const handleGenerate = async () => {
+    const maxRetries = 3; // Maximum retries for each step
+    let retryCount = 0;
     setLoading(true);
     setError("");
-  
+
     try {
       // First request to generate menu name and recipe
-      const generateRes = await fetch("http://localhost:5000/gemini/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-        credentials: "include",
-      });
-  
-      if (generateRes.status === 401) {
-        // If session is invalid, show the dialog
-        setOpenDialog(true);
-        setLoading(false);
-        return;
+      let menuName = "";
+      let ingredients = [];
+      let instructions = [];
+      let category = "";
+      let tags = [];
+
+      while (retryCount < maxRetries) {
+        try {
+          const generateRes = await fetch("http://localhost:5000/gemini/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+            }),
+            credentials: "include",
+          });
+
+          if (generateRes.status === 401) {
+            setOpenDialog(true);
+            setLoading(false);
+            return;
+          }
+
+          if (!generateRes.ok) {
+            const errorData = await generateRes.json();
+            throw new Error(errorData.error || "Recipe generation failed");
+          }
+
+          const generateData = await generateRes.json();
+          const parsedData = parseRecipeResponse(generateData.response);
+
+          menuName = parsedData.menuName;
+          ingredients = parsedData.ingredients;
+          instructions = parsedData.instructions;
+          category = parsedData.category;
+          tags = parsedData.tags;
+
+          if (
+            menuName &&
+            ingredients.length > 0 &&
+            instructions.length > 0 &&
+            category &&
+            tags.length > 0
+          ) {
+            sessionStorage.setItem("generatedMenuName", menuName);
+            sessionStorage.setItem("generatedIngredients", JSON.stringify(ingredients));
+            sessionStorage.setItem("generatedInstructions", JSON.stringify(instructions));
+            sessionStorage.setItem("generatedCategory", category);
+            sessionStorage.setItem("generatedTags", JSON.stringify(tags));
+            break; // Exit retry loop if data is valid
+          }
+        } catch (err) {
+          retryCount++;
+          console.warn(`Retrying recipe generation... Attempt ${retryCount}`);
+          if (retryCount === maxRetries)
+            throw new Error("Failed to generate recipe after multiple attempts");
+        }
       }
-  
-      if (!generateRes.ok) {
-        const errorData = await generateRes.json();
-        throw new Error(errorData.error || "Something went wrong in recipe generation");
+
+      // Reset retry count for YouTube search
+      retryCount = 0;
+      let videos = [];
+      const simplifiedMenuName = menuName.replace(/\(.*?\)/g, "").trim();
+      const keyword = `วิธีทำ${simplifiedMenuName}`;
+
+      while (retryCount < maxRetries) {
+        try {
+          const youtubeRes = await fetch("http://localhost:5000/youtube/search", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              keyword,
+            }),
+          });
+
+          if (youtubeRes.status === 401) {
+            setOpenDialog(true);
+            setLoading(false);
+            return;
+          }
+
+          if (!youtubeRes.ok) {
+            const errorData = await youtubeRes.json();
+            throw new Error(errorData.error || "YouTube video search failed");
+          }
+
+          const youtubeData = await youtubeRes.json();
+          videos = youtubeData.videos || [];
+
+          if (videos.length > 0) {
+            sessionStorage.setItem("youtubeVideos", JSON.stringify(videos));
+            break; // Exit retry loop if data is valid
+          }
+        } catch (err) {
+          retryCount++;
+          console.warn(`Retrying YouTube search... Attempt ${retryCount}`);
+          if (retryCount === maxRetries)
+            throw new Error("Failed to fetch YouTube videos after multiple attempts");
+        }
       }
-  
-      const generateData = await generateRes.json();
-  
-      // Save the whole response for debugging
-      sessionStorage.setItem("fullGeneratedResponse", generateData.response);
-  
-      // Parse the response
-      const { menuName, ingredients, instructions } = parseRecipeResponse(generateData.response);
-  
-      if (!menuName || menuName.trim() === "") {
-        throw new Error("Failed to generate a valid recipe. Please try again.");
-      }
-  
-      // Simplify the menu name for YouTube search
-      const simplifiedMenuName = menuName.replace(/\(.*?\)/g, "").trim(); // Remove content inside parentheses
-      const keyword = `วิธีทำ${simplifiedMenuName}`; // Add "วิธีทำ" prefix without spaces
-  
-      // Save data in sessionStorage
-      sessionStorage.setItem("generatedMenuName", menuName);
-      sessionStorage.setItem("generatedIngredients", JSON.stringify(ingredients));
-      sessionStorage.setItem("generatedInstructions", JSON.stringify(instructions));
-      sessionStorage.setItem("youtubeSearchKeyword", keyword);
-  
-      // Second request to fetch YouTube videos
-      const youtubeRes = await fetch("http://localhost:5000/youtube/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          keyword,
-        }),
-      });
-  
-      if (youtubeRes.status === 401) {
-        // If session is invalid, show the dialog
-        setOpenDialog(true);
-        setLoading(false);
-        return;
-      }
-  
-      if (!youtubeRes.ok) {
-        const errorData = await youtubeRes.json();
-        throw new Error(errorData.error || "Something went wrong in YouTube video search");
-      }
-  
-      const youtubeData = await youtubeRes.json();
-      const videos = youtubeData.videos || [];
-  
-      // Save videos to sessionStorage
-      sessionStorage.setItem("youtubeVideos", JSON.stringify(videos));
-  
+
       // Redirect to /food_generated if all data is valid
-      if (menuName && ingredients.length > 0 && instructions.length > 0 && videos.length > 0) {
+      if (
+        menuName &&
+        ingredients.length > 0 &&
+        instructions.length > 0 &&
+        category &&
+        tags.length > 0 &&
+        videos.length > 0
+      ) {
         router.push(`/food_generated?menuName=${encodeURIComponent(menuName)}`);
       } else {
-        throw new Error(
-          `Recipe generated: ${menuName}. No videos found for keyword: "${keyword}".`
-        );
+        throw new Error("Failed to generate complete recipe and video data");
       }
     } catch (err) {
       setError(err.message);
@@ -141,7 +192,6 @@ const GeneratePage = () => {
       setLoading(false);
     }
   };
-  
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
@@ -177,22 +227,22 @@ const GeneratePage = () => {
       )}
 
       {/* Dialog for session timeout */}
-<Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-  <DialogTitle>ฟังก์ชันนี้สงวนไว้สำหรับสมาชิก</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      กรุณาลงชื่อเข้าใช้หรือลงทะเบียนเพื่อใช้งานฟังก์ชันนี้ หากคุณเป็นสมาชิกอยู่แล้ว โปรดเข้าสู่ระบบอีกครั้ง
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenDialog(false)} color="primary">
-      ยกเลิก
-    </Button>
-    <Button onClick={handleCloseDialog} color="primary" autoFocus>
-      ลงชื่อเข้าใช้
-    </Button>
-  </DialogActions>
-</Dialog>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>ฟังก์ชันนี้สงวนไว้สำหรับสมาชิก</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            กรุณาลงชื่อเข้าใช้หรือลงทะเบียนเพื่อใช้งานฟังก์ชันนี้ หากคุณเป็นสมาชิกอยู่แล้ว โปรดเข้าสู่ระบบอีกครั้ง
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} color="primary">
+            ยกเลิก
+          </Button>
+          <Button onClick={handleCloseDialog} color="primary" autoFocus>
+            ลงชื่อเข้าใช้
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

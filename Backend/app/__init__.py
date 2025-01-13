@@ -22,7 +22,7 @@ def create_app():
         origins=["http://localhost:3000"],
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-        methods=["GET", "POST", "OPTIONS"]
+        methods=["GET", "POST", "OPTIONS", "PUT"]
     )
 
     # Load configurations
@@ -71,5 +71,8 @@ def create_app():
 
     from app.routes.recipe import recipe_bp  # Import the recipe blueprint
     app.register_blueprint(recipe_bp, url_prefix="/api")
+
+    from app.routes.users import user_bp  # Import the recipe blueprint
+    app.register_blueprint(user_bp, url_prefix="/api")
 
     return app

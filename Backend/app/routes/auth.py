@@ -1,16 +1,15 @@
 from flask import Blueprint, redirect, url_for, session, current_app, jsonify, request
 from app.models.user import User
-from app.utils.redis_utils import store_session_in_redis
-from app.utils.redis_utils import redis_client  # Assuming this provides access to Redis
+from app.utils.redis_utils import store_session_in_redis, redis_client
 from app import db
 import os
 import json
-
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login')
 def login():
+    """Handle user login via Google OAuth."""
     oauth = current_app.extensions['oauth']  # Access OAuth from the app context
     google_client = oauth.create_client('google')  # Create the Google client
     redirect_uri = url_for('auth.authorize', _external=True)
@@ -18,20 +17,16 @@ def login():
 
 @auth_bp.route('/authorize')
 def authorize():
+    """Handle Google OAuth authorization."""
     try:
-        oauth = current_app.extensions['oauth']  # Access OAuth from the app context
-        google_client = oauth.create_client('google')  # Create the Google client
+        oauth = current_app.extensions['oauth']
+        google_client = oauth.create_client('google')
         token = google_client.authorize_access_token()
-        session_id = request.cookies.get('session_id')
-        print(f"Session ID received in /auth/check: {session_id}")
 
         if not token:
             return "Error: Failed to retrieve access token", 400
 
         response = google_client.get('https://www.googleapis.com/oauth2/v3/userinfo', token=token)
-
-        print("Response status code:", response.status_code)
-        print("Response text:", response.text)
 
         if response.status_code != 200:
             return f"Error: Failed to fetch user info. Status code: {response.status_code}", 400
@@ -41,39 +36,60 @@ def authorize():
         # Process user info (e.g., save to the database)
         user = User.query.filter_by(email=user_info['email']).first()
         if not user:
-            user = User(name=user_info['name'], email=user_info['email'], picture=user_info.get('picture', ''))
+            user = User(
+                name=user_info['name'],
+                email=user_info['email'],
+                picture=user_info.get('picture', '')
+            )
             db.session.add(user)
             db.session.commit()
 
-        session_data = {'name': user.name, 'email': user.email, 'picture': user.picture}
-        store_session_in_redis(user.id, session_data)
+        # Create session data and store it in Redis
+        session_data = {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'picture': user.picture
+        }
+        session_id = f"user:{user.id}"  # Use user ID as part of the Redis key
+        redis_client.set(session_id, json.dumps(session_data), ex=3600)  # Expire in 1 hour
 
+        # Set session cookie
         response = redirect('http://localhost:3000/dashboard')
         response.set_cookie(
             'session_id',
-            value=f"user:{user.id}",
+            value=session_id,
             max_age=3600,
             httponly=True,
-            secure=False,  # Ensure this is False for localhost
+            secure=False,  # Secure should be True in production with HTTPS
             samesite='Lax'
         )
-
-        print(f"Cookie set: session_id=user:{user.id}")
-
-
         return response
     except Exception as e:
         print(f"Error in authorization: {e}")
         return f"An error occurred: {str(e)}", 500
 
-
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
-    session.pop('user', None)
-    return jsonify({"message": "Logged out successfully."})
+    """Handle user logout."""
+    try:
+        # Extract session_id from cookies
+        session_id = request.cookies.get('session_id')
+        if session_id:
+            # Delete session data from Redis
+            redis_client.delete(session_id)
+
+        # Clear session cookie
+        response = jsonify({"message": "Logged out successfully."})
+        response.set_cookie('session_id', '', max_age=0, httponly=True, secure=False, samesite='Lax')
+        return response
+    except Exception as e:
+        print(f"Error during logout: {e}")
+        return jsonify({"error": "Failed to logout."}), 500
 
 @auth_bp.route('/check', methods=['GET'])
 def check_session():
+    """Check if the user session is valid."""
     try:
         # Extract the session cookie from the request
         session_id = request.cookies.get('session_id')

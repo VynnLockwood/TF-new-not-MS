@@ -10,6 +10,8 @@ class Recipe(db.Model):
     cover_image = db.Column(db.String(500), nullable=True)
     ingredients = db.Column(db.Text, nullable=False)  # Store as JSON string
     instructions = db.Column(db.Text, nullable=False)  # Store as JSON string
+    category = db.Column(db.String(100), nullable=True)  # New field for category
+    tags = db.Column(db.Text, nullable=True)  # Store tags as a JSON string or comma-separated values
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -23,6 +25,21 @@ class Recipe(db.Model):
 
     def __repr__(self):
         return f"<Recipe {self.name}>"
+
+    def to_dict(self):
+        """Convert the recipe instance to a dictionary for easy JSON serialization."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "cover_image": self.cover_image,
+            "ingredients": self.ingredients,
+            "instructions": self.instructions,
+            "category": self.category,
+            "tags": self.tags.split(',') if self.tags else [],
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+        }
+
 
 class Rating(db.Model):
     __tablename__ = 'ratings'
@@ -39,6 +56,7 @@ class Rating(db.Model):
     def __repr__(self):
         return f"<Rating {self.score} for Recipe {self.recipe_id}>"
 
+
 class Like(db.Model):
     __tablename__ = 'likes'
     id = db.Column(db.Integer, primary_key=True)
@@ -52,6 +70,7 @@ class Like(db.Model):
 
     def __repr__(self):
         return f"<Like by User {self.user_id} for Recipe {self.recipe_id}>"
+
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -68,6 +87,7 @@ class Comment(db.Model):
     def __repr__(self):
         return f"<Comment {self.id} by User {self.user_id} on Recipe {self.recipe_id}>"
 
+
 class Favorite(db.Model):
     __tablename__ = 'favorites'
     id = db.Column(db.Integer, primary_key=True)
@@ -81,6 +101,7 @@ class Favorite(db.Model):
 
     def __repr__(self):
         return f"<Favorite by User {self.user_id} for Recipe {self.recipe_id}>"
+
 
 class RelatedVideo(db.Model):
     __tablename__ = 'related_videos'

@@ -30,7 +30,7 @@ def generate_content():
         print("Extracted prompt:", prompt)  # Debug extracted prompt
 
         # Generate full prompt
-        full_prompt = f"{prompt} ให้สูตรอาหาร, วิธีการทำ, โภชนาการทางอาหารที่ได้รับโดยประมาณ"
+        full_prompt = f"{prompt} ให้สูตรอาหาร, วิธีการทำ, catagory ของสูตร (เช่น เมนู ผัด ทอด ต้ม หรือนึ่ง) catagory ควรมีแค่ค่าเดียว, และ แท็กของสูตรอาหาร เช่น อาหารของภาค เมนูเส้น เมนูไก่ (แท็กต้องมาจากสูตรเท่านั้น อาจจะมาจากวัตถุดิบ หรือประเภทของอาหารก็ได้)"
         payload = {
             "model": os.getenv('FINE_TUNED_MODEL_ID'),
             "contents": [{"parts": [{"text": full_prompt}]}]
