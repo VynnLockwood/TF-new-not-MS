@@ -12,13 +12,14 @@ import {
   Grid,
   CircularProgress,
 } from '@mui/material';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 const RecipesByTagPage = ({ params }) => {
   const { tag } = params; // Get the tag from URL params
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const router = useRouter(); // Initialize the router object
 
   const decodedTag = decodeURIComponent(tag); // Decode the tag from URL
 
@@ -102,7 +103,7 @@ const RecipesByTagPage = ({ params }) => {
                 <Button
                   size="small"
                   onClick={() => {
-                    router.push(`/foodview/users/${recipe.id}`);
+                    router.push(`/foodview/users/${recipe.id}`); // Use the router object here
                     window.scrollTo({ top: 0, behavior: 'smooth' }); // Smooth scroll to the top
                   }}
                   color="primary"
