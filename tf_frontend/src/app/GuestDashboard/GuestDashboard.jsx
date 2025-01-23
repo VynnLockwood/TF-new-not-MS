@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  AppBar,
-  Toolbar,
   Box,
-  IconButton,
   Typography,
   TextField,
   Button,
@@ -14,49 +11,68 @@ import {
   CardContent,
   CardActions,
   Grid,
+  IconButton,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 
-
 const GuestDashboard = () => {
-  const [allRecipes, setAllRecipes] = useState([]); // Store all recipes
-  const [recipes, setRecipes] = useState([]); // Displayed recipes
+  const [allRecipes, setAllRecipes] = useState([]);
+  const [recipes, setRecipes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-
-  const heroImages = [
-    // Array of hero images
-    'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8VGhhaWZvb2R8ZW58MHx8MHx8fDA%3D',
-    // Add other image URLs here
-  ];
   const [heroImage, setHeroImage] = useState('');
+  const heroImages = [
+    'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8VGhhaWZvb2R8ZW58MHx8MHx8fDA%3D',
+  ];
 
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
 
   useEffect(() => {
-    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)]); // Random image on render
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/auth/check', {
+          method: 'GET',
+          credentials: 'include',
+        });
 
+        const data = await response.json();
+
+        if (data.valid) {
+          // Redirect valid users to the dashboard
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      }
+    };
+
+    checkAuth();
+
+    // Set a random hero image
+    const randomImage = heroImages[Math.floor(Math.random() * heroImages.length)];
+    setHeroImage(randomImage);
+
+    // Fetch recipes
     const fetchRecipes = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/based/recipes`);
-    
+
         if (!response.ok) {
           throw new Error('Failed to fetch recipes');
         }
-    
+
         const data = await response.json();
-    
-        // Add unique IDs to recipes
+
         const recipesWithIds = data.map((recipe) => ({
           ...recipe,
-          id: uuidv4(), // Generate a unique ID
+          id: uuidv4(),
         }));
-    
-        setAllRecipes(recipesWithIds); // Store recipes with IDs
+
+        setAllRecipes(recipesWithIds);
         localStorage.setItem('allRecipes', JSON.stringify(recipesWithIds));
-        setRecipes(recipesWithIds.slice(0, 6)); // Show first 6 recipes
+        setRecipes(recipesWithIds.slice(0, 6)); // Show the first 6 recipes
       } catch (error) {
         console.error(error);
       } finally {
@@ -65,7 +81,7 @@ const GuestDashboard = () => {
     };
 
     fetchRecipes();
-  }, []);
+  }, [router]);
 
   const handleSearch = (event) => {
     const query = event.target.value.toLowerCase();
@@ -74,23 +90,18 @@ const GuestDashboard = () => {
     const filteredRecipes = allRecipes.filter((recipe) =>
       recipe.recipeName.toLowerCase().includes(query)
     );
-    setRecipes(filteredRecipes.slice(0, 6)); // Display first 6 matching recipes
+    setRecipes(filteredRecipes.slice(0, 6)); // Show the first 6 results
   };
 
   const handleViewRecipe = (recipe) => {
     if (!recipe) {
-      console.error("Invalid recipe data:", recipe);
+      console.error('Invalid recipe data:', recipe);
       return;
     }
-  
-    // Save the recipe data to localStorage or sessionStorage
+
     localStorage.setItem('selectedRecipe', JSON.stringify(recipe));
-  
-    // Navigate to the next page
     router.push(`/foodview/guests/${recipe.id}`);
   };
-  
-  
 
   if (loading) {
     return (
@@ -102,8 +113,6 @@ const GuestDashboard = () => {
 
   return (
     <Box>
-    
-
       {/* Hero Section */}
       <Box
         sx={{
@@ -150,17 +159,13 @@ const GuestDashboard = () => {
                 <CardContent>
                   <Typography variant="h6">{recipe.recipeName}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {recipe.likes || 0} Like
+                    {recipe.likes || 0} Likes
                     <br />
-                    {recipe.comments || 0} Comment
+                    {recipe.comments || 0} Comments
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button
-                    size="small"
-                    color="primary"
-                    onClick={() => handleViewRecipe(recipe)}
-                  >
+                  <Button size="small" color="primary" onClick={() => handleViewRecipe(recipe)}>
                     View
                   </Button>
                   <Button size="small" color="primary">

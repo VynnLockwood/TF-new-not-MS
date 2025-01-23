@@ -22,74 +22,60 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import CommentIcon from '@mui/icons-material/Comment';
 import { useRouter } from 'next/navigation';
 
-const RecipeDetailPage = ({ recipeId }) => {
+const RecipeDetailPage = () => {
   const [recipe, setRecipe] = useState(null); // Recipe data
-  const [comments, setComments] = useState([]);
-  const [relatedVideos, setRelatedVideos] = useState([]);
-  const [likes, setLikes] = useState(0);
-  const [rating, setRating] = useState(0);
+  const [relatedRecipes, setRelatedRecipes] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false); // Dialog state
-  const [newComment, setNewComment] = useState("");
 
   const router = useRouter(); // Initialize useRouter
 
-  const fetchRecipeDetails = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/recipes/recipes/${recipeId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch recipe details');
-      }
-      const data = await response.json();
-      setRecipe(data.recipe);
-      setComments(data.comments || []);
-      setRelatedVideos(data.related_videos || []);
-      setLikes(data.likes || 0);
-      setRating(data.rating || 0);
-    } catch (error) {
-      console.error('Error fetching recipe details:', error);
+  const handleViewRecipe = (recipe) => {
+    if (!recipe) {
+      console.error("Invalid recipe data:", recipe);
+      return;
     }
+
+    // Save the recipe data to localStorage or sessionStorage
+    localStorage.setItem('selectedRecipe', JSON.stringify(recipe));
+
+    // Navigate to the next page
+    router.push(`/foodview/guests/${recipe.id}`);
   };
 
-  const handleLike = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/recipes/recipes/${recipeId}/like`, {
-        method: 'POST',
-        credentials: 'include', // Include cookies for authentication
-      });
-      if (!response.ok) {
-        throw new Error('Failed to like recipe');
-      }
-      const data = await response.json();
-      setLikes(data.likes);
-    } catch (error) {
-      console.error('Error liking recipe:', error);
-    }
+  // Open the dialog
+  const handleOpenDialog = () => {
+    setIsDialogOpen(true);
   };
 
-  const handleAddComment = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/recipes/recipes/${recipeId}/comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ comment: newComment }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to add comment');
-      }
-      const data = await response.json();
-      setComments((prevComments) => [...prevComments, { content: newComment }]);
-      setNewComment(""); // Reset the comment field
-    } catch (error) {
-      console.error('Error adding comment:', error);
-    }
+  // Close the dialog
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
   };
 
   useEffect(() => {
-    fetchRecipeDetails();
-  }, [recipeId]);
+    console.log('Fetching data from localStorage...');
+    const storedRecipe = localStorage.getItem('selectedRecipe');
+    const storedAllRecipes = localStorage.getItem('allRecipes');
+
+    if (storedRecipe) {
+      console.log('Selected Recipe:', JSON.parse(storedRecipe));
+      setRecipe(JSON.parse(storedRecipe));
+    }
+
+    if (storedAllRecipes) {
+      console.log('All Recipes:', JSON.parse(storedAllRecipes));
+      const allRecipes = JSON.parse(storedAllRecipes);
+
+      if (allRecipes.length > 0) {
+        const shuffledRecipes = allRecipes.sort(() => 0.5 - Math.random());
+        console.log('Shuffled Recipes:', shuffledRecipes);
+        setRelatedRecipes(shuffledRecipes.slice(0, 4)); // Pick 4 random recipes
+        console.log('Related Recipes:', shuffledRecipes.slice(0, 4));
+      } else {
+        console.log('No recipes available in allRecipes.');
+      }
+    }
+  }, []);
 
   // Show error message if no recipe found
   if (!recipe) {
@@ -105,10 +91,10 @@ const RecipeDetailPage = ({ recipeId }) => {
       {/* Header Section */}
       <Box sx={{ textAlign: 'center', marginBottom: '2rem' }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
-          {recipe.name || 'Unnamed Recipe'}
+          {recipe.recipeName || 'Unnamed Recipe'}
         </Typography>
         <Typography variant="subtitle1" color="textSecondary">
-          Thaifoods, {new Date(recipe.created_at).toLocaleDateString()}
+          Thaifoods, Mar 16, 2022
         </Typography>
       </Box>
 
@@ -118,8 +104,8 @@ const RecipeDetailPage = ({ recipeId }) => {
         <Grid item xs={12} md={6}>
           <CardMedia
             component="img"
-            image={recipe.cover_image || 'https://via.placeholder.com/800x400'}
-            alt={recipe.name || 'Recipe Image'}
+            image={recipe.imageURL || 'https://via.placeholder.com/800x400'}
+            alt={recipe.recipeName || 'Recipe Image'}
             sx={{ borderRadius: '8px', boxShadow: 1 }}
           />
         </Grid>
@@ -129,12 +115,12 @@ const RecipeDetailPage = ({ recipeId }) => {
           {/* Ratings and Likes */}
           <Box sx={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <StarRateIcon sx={{ color: '#FFD700' }} />
-            <Typography variant="subtitle1">{rating.toFixed(1)} / 5</Typography>
-            <Button startIcon={<ThumbUpIcon />} variant="outlined" size="small" onClick={handleLike}>
-              Like {likes}
+            <Typography variant="subtitle1">- / 5</Typography>
+            <Button startIcon={<ThumbUpIcon />} variant="outlined" size="small" onClick={handleOpenDialog}>
+              Like {recipe.likes || 0}
             </Button>
-            <Button startIcon={<CommentIcon />} variant="outlined" size="small" onClick={() => setIsDialogOpen(true)}>
-              Comment {comments.length}
+            <Button startIcon={<CommentIcon />} variant="outlined" size="small" onClick={handleOpenDialog}>
+              Comment {recipe.comments || 0}
             </Button>
           </Box>
 
@@ -142,7 +128,7 @@ const RecipeDetailPage = ({ recipeId }) => {
           {recipe.ingredients && recipe.ingredients.length > 0 && (
             <Box sx={{ backgroundColor: '#d9f8d9', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Ingredients
+                วัตถุดิบ
               </Typography>
               <ul>
                 {recipe.ingredients.map((ingredient, index) => (
@@ -158,7 +144,7 @@ const RecipeDetailPage = ({ recipeId }) => {
           {recipe.instructions && recipe.instructions.length > 0 && (
             <Box sx={{ backgroundColor: '#d9f8d9', padding: '1rem', borderRadius: '8px' }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Instructions
+                วิธีการทำ
               </Typography>
               <ol>
                 {recipe.instructions.map((step, index) => (
@@ -172,59 +158,77 @@ const RecipeDetailPage = ({ recipeId }) => {
         </Grid>
       </Grid>
 
-      {/* Related Videos */}
-      <Box sx={{ marginTop: '2rem' }}>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', marginBottom: '1rem' }}>
-          Related Videos
-        </Typography>
-        <Grid container spacing={2}>
-          {relatedVideos.map((video, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <Card>
-                <CardMedia
-                  component="iframe"
-                  height="200"
-                  src={`https://www.youtube.com/embed/${video.id}`}
-                  title={video.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-                <CardContent>
-                  <Typography variant="body2">{video.title}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-
       {/* Comment Section */}
       <Box sx={{ marginTop: '2rem', backgroundColor: '#e9e9e9', padding: '1.5rem', borderRadius: '8px' }}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', marginBottom: '1rem' }}>
-          Comments
+          แสดงความคิดเห็น
         </Typography>
         <TextField
           fullWidth
           multiline
           rows={3}
-          placeholder="Add your comment..."
+          placeholder="เขียนความคิดเห็นของคุณ..."
           variant="outlined"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
           sx={{ marginBottom: '1rem' }}
+          onClick={handleOpenDialog}
         />
-        <Button variant="contained" color="primary" onClick={handleAddComment}>
-          Submit Comment
+        <Button variant="contained" color="primary" onClick={handleOpenDialog}>
+          ส่งความคิดเห็น
         </Button>
-        <Box sx={{ marginTop: '1rem' }}>
-          {comments.map((comment, index) => (
-            <Typography key={index} variant="body1" sx={{ marginBottom: '0.5rem' }}>
-              {comment.content}
-            </Typography>
-          ))}
-        </Box>
       </Box>
+
+      {/* Related Recipes Section */}
+      {relatedRecipes && relatedRecipes.length > 0 && (
+        <Box sx={{ marginTop: '2rem' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', marginBottom: '1rem' }}>
+            เมนูที่น่าสนใจ
+          </Typography>
+          <Grid container spacing={2}>
+            {relatedRecipes.map((related, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Card sx={{ maxWidth: '100%', textAlign: 'center' }}>
+                  <CardMedia
+                    component="img"
+                    image={related.imageURL || 'https://via.placeholder.com/200'}
+                    alt={related.recipeName || 'Related Recipe'}
+                    sx={{ height: 140 }}
+                  />
+                  <CardContent>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                      {related.recipeName || 'No Title'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Rating: {related.rating || "-"} / 5
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    {/* Use handleViewRecipe to navigate */}
+                    <Button size="small" onClick={() => handleViewRecipe(related)}>
+                      ดูสูตรอาหาร
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* Dialog for Restricted Actions */}
+      <Dialog open={isDialogOpen} onClose={handleCloseDialog}>
+        <DialogTitle>ฟังก์ชันนี้ใช้ได้เฉพาะผู้ใช้งานที่ลงทะเบียน</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            หากคุณต้องการใช้งานฟังก์ชันนี้ กรุณาลงทะเบียนหรือลงชื่อเข้าใช้
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>ปิด</Button>
+          <Button onClick={() => router.push('/login')} color="primary" variant="contained">
+            ลงชื่อเข้าใช้
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -12,6 +12,8 @@ class Recipe(db.Model):
     instructions = db.Column(db.Text, nullable=False)  # Store as JSON string
     category = db.Column(db.String(100), nullable=True)  # New field for category
     tags = db.Column(db.Text, nullable=True)  # Store tags as a JSON string or comma-separated values
+    characteristics = db.Column(db.Text, nullable=True)  # New field for characteristics
+    flavors = db.Column(db.Text, nullable=True)  # New field for flavors
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -36,9 +38,12 @@ class Recipe(db.Model):
             "instructions": self.instructions,
             "category": self.category,
             "tags": self.tags.split(',') if self.tags else [],
+            "characteristics": self.characteristics,  # Include characteristics in dict
+            "flavors": self.flavors,  # Include flavors in dict
             "created_by": self.created_by,
             "created_at": self.created_at.isoformat(),
         }
+
 
 
 class Rating(db.Model):

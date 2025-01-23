@@ -42,12 +42,15 @@ def submit_recipe():
         ingredients = "\n".join(data["ingredients"]) if isinstance(data["ingredients"], list) else data["ingredients"]
         instructions = "\n".join(data["instructions"]) if isinstance(data["instructions"], list) else data["instructions"]
 
-        # Sanitize and handle category and tags
+        # Sanitize and handle category, tags, characteristics, and flavors
         category = data.get("category", "").strip()  # Use default empty string if not provided
         tags = data.get("tags", [])  # Default to an empty list if not provided
         if isinstance(tags, list):
             # Convert tags to a comma-separated string for storage
             tags = ",".join([tag.strip() for tag in tags])
+
+        characteristics = data.get("characteristics", "").strip()  # Default empty string if not provided
+        flavors = data.get("flavors", "").strip()  # Default empty string if not provided
 
         # Create and store the recipe
         recipe = Recipe(
@@ -57,6 +60,8 @@ def submit_recipe():
             instructions=instructions,  # Store as plain text
             category=category,  # Store the category
             tags=tags,  # Store the tags as a string
+            characteristics=characteristics,  # Store characteristics
+            flavors=flavors,  # Store flavors
             created_by=user.id,
             created_at=datetime.utcnow(),
         )
@@ -82,7 +87,6 @@ def submit_recipe():
         current_app.logger.error(traceback.format_exc())
         db.session.rollback()
         return jsonify({"error": "Internal server error"}), 500
-
 
 
 
@@ -479,7 +483,15 @@ def search_recipes():
             return jsonify({"error": "Search query is required"}), 400
 
         # Perform the search (use ilike for case-insensitive partial matching)
-        recipes_query = Recipe.query.filter(Recipe.name.ilike(f"%{query}%"))
+        recipes_query = Recipe.query.filter(
+            db.or_(
+                Recipe.name.ilike(f"%{query}%"),
+                Recipe.ingredients.ilike(f"%{query}%"),
+                Recipe.characteristics.ilike(f"%{query}%"),
+                Recipe.flavors.ilike(f"%{query}%"),
+                Recipe.tags.ilike(f"%{query}%"),
+            )
+        )
         recipes = recipes_query.all()  # Resolve the query into a list
 
         if not recipes:
@@ -505,7 +517,7 @@ def search_recipes():
 
             # Calculate average rating if ratings are available
             average_rating = (
-                sum(rating.value for rating in resolved_ratings) / len(resolved_ratings)
+                sum(rating.score for rating in resolved_ratings) / len(resolved_ratings)
                 if resolved_ratings else 0
             )
 
@@ -518,6 +530,8 @@ def search_recipes():
                 "instructions": safe_json_load(recipe.instructions, []),  # Safely parse JSON
                 "category": recipe.category,
                 "tags": safe_json_load(recipe.tags, []),  # Safely parse JSON
+                "characteristics": recipe.characteristics,  # Add characteristics
+                "flavors": recipe.flavors,  # Add flavors
                 "likes": resolved_likes,
                 "comments": resolved_comments,
                 "average_rating": average_rating,
@@ -528,4 +542,33 @@ def search_recipes():
 
     except Exception as e:
         current_app.logger.error(f"Error in search_recipes: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@recipe_bp.route("/recipes/<int:recipe_id>/duplicate", methods=["GET"])
+def duplicate_recipe(recipe_id):
+    """
+    Fetch details of a recipe for duplication.
+    """
+    try:
+        # Fetch the original recipe
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({"error": "Recipe not found"}), 404
+
+        # Format the recipe data for duplication
+        recipe_data = {
+            "name": f"Copy of {recipe.name}",
+            "cover_image": recipe.cover_image,
+            "ingredients": recipe.ingredients,
+            "instructions": recipe.instructions,
+            "category": recipe.category,
+            "tags": recipe.tags,
+            "characteristics": recipe.characteristics,
+            "flavors": recipe.flavors,
+            # Do not include the creator_id or creation date
+        }
+
+        return jsonify(recipe_data), 200
+    except Exception as e:
+        current_app.logger.error(f"Error duplicating recipe: {e}")
         return jsonify({"error": "Internal server error"}), 500
