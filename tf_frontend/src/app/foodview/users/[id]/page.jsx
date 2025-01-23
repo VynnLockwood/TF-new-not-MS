@@ -164,6 +164,34 @@ const RecipeDetailPage = () => {
   const ingredients = parseOrSplit(recipe.ingredients);
   const instructions = parseOrSplit(recipe.instructions);
 
+  const handleDuplicateRecipe = async (recipeId) => {
+    try {
+      // Fetch original recipe details
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/${recipeId}/duplicate`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch recipe for duplication');
+      }
+  
+      const recipeData = await response.json();
+  
+      // Save the recipe data in local storage or session storage
+      localStorage.setItem('duplicatedRecipe', JSON.stringify(recipeData));
+  
+      // Redirect to the recipe editing page
+      router.push('/recipe/edit');
+    } catch (error) {
+      console.error('Error duplicating recipe:', error.message);
+    }
+  };
+  
+
   return (
     <Box sx={{ padding: '2rem', backgroundColor: '#f9f9f9', minHeight: '100vh' }}>
       <Box
@@ -271,6 +299,18 @@ const RecipeDetailPage = () => {
           </Box>
         </Grid>
       </Grid>
+
+
+      {/* <Button
+  size="small"
+  color="secondary"
+  variant="outlined"
+  onClick={() => handleDuplicateRecipe(recipe.id)}
+>
+  Duplicate Recipe
+</Button> */}
+
+
 
       <Box sx={{ marginTop: '2rem' }}>
         <Typography variant="h6">Comments</Typography>

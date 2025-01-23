@@ -30,6 +30,10 @@ const FoodGenerated = () => {
   const [coverImage, setCoverImage] = useState(""); // Cover image URL
   const [isUploading, setIsUploading] = useState(false); // Upload state
   const [ingredients, setIngredients] = useState([]);
+
+  const [characteristics, setCharacteristics] = useState([]);
+  const [flavors, setFlavors] = useState([]);
+
   const [instructions, setInstructions] = useState([]);
   const [videos, setVideos] = useState([]);
   const [category, setCategory] = useState("Unknown Category");
@@ -47,14 +51,44 @@ const FoodGenerated = () => {
     const storedVideos = sessionStorage.getItem("youtubeVideos");
     const storedCategory = sessionStorage.getItem("generatedCategory");
     const storedTags = sessionStorage.getItem("generatedTags");
-
+    const storedCharacteristics = sessionStorage.getItem("generatedCharacteristics");
+    const storedFlavors = sessionStorage.getItem("generatedFlavors");
+  
+    // Safely parse JSON values and set state
     if (storedCoverImage) setCoverImage(storedCoverImage);
-    if (storedIngredients) setIngredients(parseAndSanitize(JSON.parse(storedIngredients)));
-    if (storedInstructions) setInstructions(parseAndSanitize(JSON.parse(storedInstructions)));
-    if (storedVideos) setVideos(JSON.parse(storedVideos));
+    if (storedIngredients) {
+      try {
+        setIngredients(parseAndSanitize(JSON.parse(storedIngredients)));
+      } catch (e) {
+        console.error("Error parsing generatedIngredients:", e);
+      }
+    }
+    if (storedInstructions) {
+      try {
+        setInstructions(parseAndSanitize(JSON.parse(storedInstructions)));
+      } catch (e) {
+        console.error("Error parsing generatedInstructions:", e);
+      }
+    }
+    if (storedVideos) {
+      try {
+        setVideos(JSON.parse(storedVideos));
+      } catch (e) {
+        console.error("Error parsing youtubeVideos:", e);
+      }
+    }
     if (storedCategory) setCategory(storedCategory);
-    if (storedTags) setTags(JSON.parse(storedTags));
+    if (storedTags) {
+      try {
+        setTags(JSON.parse(storedTags));
+      } catch (e) {
+        console.error("Error parsing generatedTags:", e);
+      }
+    }
+    if (storedCharacteristics) setCharacteristics(storedCharacteristics);
+    if (storedFlavors) setFlavors(storedFlavors);
   }, []);
+  
 
   // Sanitize and remove markdown symbols
   const parseAndSanitize = (data) => {
@@ -372,52 +406,64 @@ const handleDelete = (type, index) => {
       console.log("Starting fetch request...");
 
       // Sanitize category and tags before submission
-      const sanitizeText = (text) => text.replace(/[^a-zA-Z0-9\sก-๙]/g, "").trim(); // Remove all symbols except alphanumeric and Thai characters
+      const sanitizeText = (text) =>
+        text.replace(/[^a-zA-Z0-9\sก-๙]/g, "").trim(); // Remove all symbols except alphanumeric and Thai characters
       const sanitizedCategory = sanitizeText(category);
       const sanitizedTags = tags.map(sanitizeText);
 
       console.log("Sanitized Category:", sanitizedCategory);
       console.log("Sanitized Tags:", sanitizedTags);
 
+      // Prepare the recipe data for saving
+      const recipeData = {
+        name: menuName,
+        ingredients,
+        instructions,
+        cover_image: coverImage,
+        category: sanitizedCategory,
+        tags: sanitizedTags,
+        characteristics: characteristics, // Include characteristics
+        flavors: flavors,         // Include flavors
+        videos: videos.map((video) => ({
+          title: video.title,
+          url: `https://www.youtube.com/watch?v=${video.id}`,
+        })),
+      };
+
+      console.log("Recipe Data:", recipeData);
+
+      // Send data to the backend API
       const response = await fetch("http://localhost:5000/api/recipes/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include", // Ensure cookies are sent
-        body: JSON.stringify({
-          name: menuName,
-          ingredients,
-          instructions,
-          cover_image: coverImage,
-          category: sanitizedCategory,
-          tags: sanitizedTags,
-          videos: videos.map((video) => ({
-            title: video.title,
-            url: `https://www.youtube.com/watch?v=${video.id}`,
-          })),
-        }),
+        body: JSON.stringify(recipeData),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to save recipe");
+      }
 
       const data = await response.json();
       console.log("Response received:", data);
 
-      // Clear the cover image data
-      setCoverImage(""); // Clear the state
-      sessionStorage.removeItem("coverImage"); // Remove from sessionStorage
+      // Clear session data after successful submission
+      sessionStorage.clear();
+      alert("Recipe saved successfully!");
 
-      if(data){
-        router.push(`/foodview/available`);
-      }
-      
+      // Redirect the user to a confirmation or list page
+      router.push(`/foodview/available`);
     } catch (error) {
       console.error("Error during fetch:", error);
-      alert("Failed to submit the recipe. Please try again.");
+      alert("Failed to save the recipe. Please try again.");
     }
   }}
 >
   Submit Recipe
 </Button>
+
 
 
         {/* Video Suggestions */}

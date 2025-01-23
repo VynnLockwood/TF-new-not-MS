@@ -23,6 +23,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/GuestDashboard/GuestDashboard.jsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/GuestDashboard/GuestDashboard.jsx", "src/app/login/page.jsx", "src/app/generateai/page.jsx", "src/app/food_generated/page.jsx", "src/app/dashboard/page.jsx"],
   "exclude": ["node_modules"]
 }

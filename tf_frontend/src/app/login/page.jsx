@@ -1,4 +1,4 @@
-'use client'; // Mark the file as client-side
+'use client';
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 const LoginPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null); // Removed type annotation
 
   useEffect(() => {
     const checkAuth = async () => {
