@@ -1,3 +1,16 @@
+# version: '3.8'
+# services:
+#   redis:
+#     image: redis
+#     container_name: redis-container
+#     ports:
+#       - "6379:6379"
+#     volumes:
+#       - redis-data:/data
+#     command: ["redis-server", "--appendonly", "yes"]
+# volumes:
+#   redis-data:
+
 version: '3.8'
 services:
   redis:
@@ -8,5 +21,52 @@ services:
     volumes:
       - redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres-container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build: ./app
+    container_name: backend-container
+    environment:
+      FLASK_SECRET_KEY: 25BC196631D5BABC8AFEFAAB8BEAD
+      GOOGLE_CLIENT_ID: 915940246324-ngdnehtq3unlscmnog7uq0qua8g67bcd.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
+      DATABASE_URL: postgresql://postgres:postgres@postgres/db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+      - postgres
+
+  frontend:
+    build: ./tf_frontend
+    container_name: frontend-container
+    environment:
+      GOOGLE_CLIENT_ID: 915940246324-ngdnehtq3unlscmnog7uq0qua8g67bcd.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
+      NEXT_PUBLIC_API_URL: http://backend-container:5000
+      FLASK_GOOGLE_URL: http://backend-container:5000
+      NEXT_PUBLIC_BACK_END_URL: http://backend-container:5000
+      IMGUR_CLIENT_ID: de5cd6c5436730a
+      IMGUR_CLIENT_SECRET: a8e22188bc5c878a046327aaeee79b8bf75dd119
+      NEXT_PUBLIC_IMGUR_CLIENT_ID: de5cd6c5436730a
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
 volumes:
   redis-data:
+  postgres-data:
