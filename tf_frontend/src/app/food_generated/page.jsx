@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
+import { Suspense } from "react";
 import {
   Box,
   Typography,
@@ -501,4 +502,10 @@ const handleDelete = (type, index) => {
   );
 };
 
-export default FoodGenerated;
+export default function FoodGeneratedPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <FoodGenerated />
+    </Suspense>
+  );
+}
