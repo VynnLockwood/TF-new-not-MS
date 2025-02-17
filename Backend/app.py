@@ -14,10 +14,6 @@ from functools import wraps
 from flask_migrate import Migrate, upgrade
 
 
-
-
-
-
 # Create Flask app
 app = Flask(__name__)
 CORS(app, origins="http://localhost:3000", supports_credentials=True)  # Allow requests from the React app
@@ -35,6 +31,7 @@ Session(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:NolanRobinson@localhost/db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)  # Initialize Flask-Migrate
 
 # Constants
 API_KEY = "AIzaSyA5WINnuzdq4-Oxb2rgEa7tQ_12JRQ5rSA"  # Replace with your actual API key
