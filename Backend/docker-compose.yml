@@ -1,17 +1,5 @@
-# version: '3.8'
-# services:
-#   redis:
-#     image: redis
-#     container_name: redis-container
-#     ports:
-#       - "6379:6379"
-#     volumes:
-#       - redis-data:/data
-#     command: ["redis-server", "--appendonly", "yes"]
-# volumes:
-#   redis-data:
 
-version: '3.8'
+
 services:
   redis:
     image: redis
@@ -30,12 +18,14 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: db
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
   backend:
-    build: ./app
+    build:  # 'build' is now just a parent key, not a path
+      context: .    # 'context' is indented under 'build'
+      dockerfile: ./app/Dockerfile  # 'dockerfile' is also indented under 'build', aligned with 'context'
     container_name: backend-container
     environment:
       FLASK_SECRET_KEY: 25BC196631D5BABC8AFEFAAB8BEAD
@@ -44,6 +34,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres/db
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      FLASK_APP: app
     ports:
       - "5000:5000"
     depends_on:
@@ -51,7 +42,7 @@ services:
       - postgres
 
   frontend:
-    build: ./tf_frontend
+    build: ../tf_frontend
     container_name: frontend-container
     environment:
       GOOGLE_CLIENT_ID: 915940246324-ngdnehtq3unlscmnog7uq0qua8g67bcd.apps.googleusercontent.com
