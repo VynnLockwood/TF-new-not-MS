@@ -32,7 +32,7 @@ const GuestDashboard = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('http://localhost:5000/auth/check', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/auth/check`, {
           method: 'GET',
           credentials: 'include',
         });

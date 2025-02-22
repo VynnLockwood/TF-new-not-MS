@@ -55,7 +55,7 @@ def authorize():
         redis_client.set(session_id, json.dumps(session_data), ex=3600)  # Expire in 1 hour
 
         # Set session cookie
-        response = redirect('http://localhost:3000/dashboard')
+        response = redirect('http://thaifoodrecipes.ddns.net:3000/dashboard')
         response.set_cookie(
             'session_id',
             value=session_id,
