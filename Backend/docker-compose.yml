@@ -1,14 +1,11 @@
-
-
 services:
   redis:
     image: redis
     container_name: redis-container
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
+    # Removed ports to keep internal
 
   postgres:
     image: postgres:latest
@@ -17,15 +14,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: db
-    ports:
-      - "5435:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    # Removed ports to keep internal
 
   backend:
-    build:  # 'build' is now just a parent key, not a path
-      context: .    # 'context' is indented under 'build'
-      dockerfile: ./app/Dockerfile  # 'dockerfile' is also indented under 'build', aligned with 'context'
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
     container_name: backend-container
     environment:
       FLASK_SECRET_KEY: 25BC196631D5BABC8AFEFAAB8BEAD
@@ -35,27 +31,36 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FLASK_APP: app
-    ports:
-      - "5000:5000"
     depends_on:
       - redis
       - postgres
+    # Removed ports to keep internal
 
   frontend:
     build: ../tf_frontend
     container_name: frontend-container
     environment:
+      NEXT_PUBLIC_API_URL: /api
       GOOGLE_CLIENT_ID: 915940246324-ngdnehtq3unlscmnog7uq0qua8g67bcd.apps.googleusercontent.com
       GOOGLE_CLIENT_SECRET: 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
-      NEXT_PUBLIC_API_URL: http://backend-container:5000
       FLASK_GOOGLE_URL: http://backend-container:5000
-      NEXT_PUBLIC_BACK_END_URL: http://backend-container:5000
+      NEXT_PUBLIC_BACK_END_URL: /api
       IMGUR_CLIENT_ID: de5cd6c5436730a
       IMGUR_CLIENT_SECRET: a8e22188bc5c878a046327aaeee79b8bf75dd119
       NEXT_PUBLIC_IMGUR_CLIENT_ID: de5cd6c5436730a
-    ports:
-      - "3000:3000"
     depends_on:
+      - backend
+    # Removed ports to keep internal
+
+  nginx:
+    image: nginx
+    container_name: nginx-container
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
       - backend
 
 volumes:
