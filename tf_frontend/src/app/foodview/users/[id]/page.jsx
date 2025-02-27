@@ -57,7 +57,7 @@ const RecipeDetailPage = () => {
       try {
         const recipeId = window.location.pathname.split('/').pop();
 
-        const recipeResponse = await fetch(`http://localhost:5000/api/recipes/${recipeId}`, {
+        const recipeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/${recipeId}`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -70,7 +70,7 @@ const RecipeDetailPage = () => {
         setRating(recipeData.average_rating || 0);
         setLikedByUser(recipeData.liked_by_user || false);
 
-        const videosResponse = await fetch(`http://localhost:5000/api/recipes/${recipeId}/related_videos`, {
+        const videosResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/${recipeId}/related_videos`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -81,7 +81,7 @@ const RecipeDetailPage = () => {
         }
 
         const suggestedResponse = await fetch(
-          `http://localhost:5000/api/recipes/${recipeId}/suggested_recipes`,
+          `${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/${recipeId}/suggested_recipes`,
           {
             method: 'GET',
             credentials: 'include',
@@ -105,7 +105,7 @@ const RecipeDetailPage = () => {
   const handleLikeToggle = async () => {
     try {
       const recipeId = recipe.id;
-      const response = await fetch(`http://localhost:5000/api/${recipeId}/like`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/${recipeId}/like`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -123,7 +123,7 @@ const RecipeDetailPage = () => {
   const handleAddComment = async () => {
     try {
       const recipeId = recipe.id;
-      const response = await fetch(`http://localhost:5000/api/${recipeId}/comment`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/${recipeId}/comment`, {
         method: 'POST',
         credentials: 'include',
         headers: {
