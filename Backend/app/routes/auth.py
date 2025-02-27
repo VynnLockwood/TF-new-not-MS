@@ -12,7 +12,8 @@ def login():
     """Handle user login via Google OAuth."""
     oauth = current_app.extensions['oauth']  # Access OAuth from the app context
     google_client = oauth.create_client('google')  # Create the Google client
-    redirect_uri = url_for('auth.authorize', _external=True)
+    redirect_uri = url_for('auth.authorize', _external=True, _scheme='https')
+    #redirect_uri = url_for('auth.authorize', _external=True)
     return google_client.authorize_redirect(redirect_uri)
 
 @auth_bp.route('/authorize')
@@ -55,13 +56,13 @@ def authorize():
         redis_client.set(session_id, json.dumps(session_data), ex=3600)  # Expire in 1 hour
 
         # Set session cookie
-        response = redirect('http://thaifoodrecipes.ddns.net:3000/dashboard')
+        response = redirect('https://thaifood-xi.vercel.app/dashboard')
         response.set_cookie(
             'session_id',
             value=session_id,
             max_age=3600,
             httponly=True,
-            secure=False,  # Secure should be True in production with HTTPS
+            secure=True,  # Secure should be True in production with HTTPS
             samesite='Lax'
         )
         return response
