@@ -28,7 +28,7 @@ const RecipesByTagPage = ({ params }) => {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:5000/api/recipes?tag=${encodeURIComponent(decodedTag)}`,
+          `${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes?tag=${encodeURIComponent(decodedTag)}`,
           {
             method: 'GET',
             credentials: 'include',
