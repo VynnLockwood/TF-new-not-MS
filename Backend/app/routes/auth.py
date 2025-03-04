@@ -12,8 +12,8 @@ def login():
     """Handle user login via Google OAuth."""
     oauth = current_app.extensions['oauth']  # Access OAuth from the app context
     google_client = oauth.create_client('google')  # Create the Google client
-    #redirect_uri = url_for('auth.authorize', _external=True, _scheme='https')
-    redirect_uri = url_for('auth.authorize', _external=True)
+    redirect_uri = url_for('auth.authorize', _external=True, _scheme='https')
+    #redirect_uri = url_for('auth.authorize', _external=True)
     return google_client.authorize_redirect(redirect_uri)
 
 @auth_bp.route('/authorize')
@@ -70,7 +70,7 @@ def authorize():
 
         # Set session cookie
         #response = redirect('https://thaifood-xi.vercel.app/dashboard')
-        response = redirect('http://localhost:8080/dashboard')
+        response = redirect('https://f8ec-202-12-97-159.ngrok-free.app/dashboard')
         response.set_cookie(
             'session_id',
             value=session_id,

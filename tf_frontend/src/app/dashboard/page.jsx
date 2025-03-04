@@ -48,7 +48,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUserAndRecipes = async () => {
       try {
-        const userResponse = await fetch('http://localhost:5000/auth/check', {
+        const userResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/auth/check`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -65,7 +65,7 @@ const Dashboard = () => {
           picture: userData.user.picture || '/default-avatar.png',
         });
 
-        const recipeResponse = await fetch('http://localhost:5000/api/recipes', {
+        const recipeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes`, {
           method: 'GET',
           credentials: 'include',
         });
