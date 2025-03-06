@@ -109,7 +109,7 @@ const FoodGenerated = () => {
     formData.append("image", file);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/imgur/upload`, {
+      const response = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/api/imgur/upload", {
         method: "POST",
         body: formData,
       });
@@ -434,7 +434,7 @@ const handleDelete = (type, index) => {
       console.log("Recipe Data:", recipeData);
 
       // Send data to the backend API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/submit`, {
+      const response = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/api/recipes/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
