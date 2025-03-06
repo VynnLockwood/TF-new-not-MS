@@ -41,7 +41,7 @@ const AvailableRecipesPage = () => {
         if (selectedTag) query.append('tag', selectedTag);
         if (selectedCategory) query.append('category', selectedCategory);
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes?${query.toString()}`, {
+        const response = await fetch(`https://f8ec-202-12-97-159.ngrok-free.app/api/api/recipes?${query.toString()}`, {
           method: 'GET',
           credentials: 'include',
         });

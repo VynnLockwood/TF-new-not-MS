@@ -11,7 +11,7 @@ gemini_bp = Blueprint('gemini', __name__)
 def generate_content():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS preflight passed"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+        response.headers.add("Access-Control-Allow-Origin", "https://b2b3-2001-44c8-6614-6788-34b2-e6c4-29ad-8a81.ngrok-free.app")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
@@ -86,7 +86,7 @@ def parse_content():
     """
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS preflight passed"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+        response.headers.add("Access-Control-Allow-Origin", "https://b2b3-2001-44c8-6614-6788-34b2-e6c4-29ad-8a81.ngrok-free.app")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
