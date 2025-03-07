@@ -37,7 +37,7 @@ const GeneratePage = () => {
       while (retryCount < maxRetries) {
         try {
           console.log(`Attempt ${retryCount + 1}: Generating recipe...`);
-          const generateRes = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/gemini/generate", {
+          const generateRes = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/gemini/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -74,7 +74,7 @@ const GeneratePage = () => {
       console.log("Payload to /gemini/parse:", { response: rawResponse });
 
       console.log("Parsing the raw response using /parse API...");
-      const parseRes = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/gemini/parse", {
+      const parseRes = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/gemini/parse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response: rawResponse }), // Use rawResponse as input for /parse
@@ -122,7 +122,7 @@ const GeneratePage = () => {
       // Step 4: Search YouTube videos
       const searchKeyword = `วิธีทำ ${recipeData.menuName}`;
       console.log(`Searching YouTube videos: ${searchKeyword}`);
-      const youtubeRes = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/youtube/search", {
+      const youtubeRes = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/youtube/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

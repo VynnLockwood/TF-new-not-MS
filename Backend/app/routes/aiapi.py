@@ -11,7 +11,7 @@ gemini_bp = Blueprint('gemini', __name__)
 def generate_content():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS preflight passed"})
-        response.headers.add("Access-Control-Allow-Origin", "https://b2b3-2001-44c8-6614-6788-34b2-e6c4-29ad-8a81.ngrok-free.app")
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
@@ -86,7 +86,7 @@ def parse_content():
     """
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS preflight passed"})
-        response.headers.add("Access-Control-Allow-Origin", "https://b2b3-2001-44c8-6614-6788-34b2-e6c4-29ad-8a81.ngrok-free.app")
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
@@ -159,4 +159,87 @@ def parse_content():
             return jsonify({"error": "Failed to parse JSON response"}), 500
     except Exception as e:
         print(f"Error in /gemini/parse: {e}")
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@gemini_bp.route('/check', methods=['POST', 'OPTIONS'])
+def check_recipe():
+    if request.method == 'OPTIONS':
+        response = jsonify({"message": "CORS preflight passed"})
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        return response, 200
+
+    try:
+        # Get the recipe data from the request
+        recipe_data = request.get_json()
+        
+        # Extract individual fields from recipe_data
+        menu_name = recipe_data.get("name", "")
+        ingredients = recipe_data.get("ingredients", [])
+        instructions = recipe_data.get("instructions", [])
+        category = recipe_data.get("category", "")
+        tags = recipe_data.get("tags", [])
+        cover_image = recipe_data.get("cover_image", "")
+        characteristics = recipe_data.get("characteristics", [])
+        flavors = recipe_data.get("flavors", [])
+        videos = recipe_data.get("videos", [])
+
+        if not menu_name or not ingredients or not instructions:
+            return jsonify({"error": "All fields (name, ingredients, instructions) are required"}), 400
+
+        # Construct the prompt for Gemini or another AI service
+        prompt = f"""
+        ตรวจสอบสูตรอาหารนี้ให้ดี โดยต้องแน่ใจว่าการทำอาหารในสูตรนี้ปลอดภัย และไม่มีคำแนะนำที่ผิดหรืออันตราย เช่น "ทอดจนสีดำ" หรือ "กินดิบ"
+        ชื่อเมนู: {menu_name}
+        ส่วนผสม:
+        {"\n".join([f"- {ingredient}" for ingredient in ingredients])}
+        วิธีทำ:
+        {"\n".join([f"{idx+1}. {instruction}" for idx, instruction in enumerate(instructions)])}
+        หมวดหมู่: {category}
+        แท็ก: {', '.join(tags)}
+        ลักษณะ: {', '.join(characteristics)}
+        รสชาติ: {', '.join(flavors)}
+        วิดีโอ: {', '.join([video['url'] for video in videos])}
+
+        กรุณาตอบกลับโดยแจ้งเตือนหากพบการทำอาหารที่ผิดพลาดหรือมีอันตราย พร้อมคำแนะนำในการปรับปรุงสูตรนี้
+
+        ตอบกลับโดยใช้ format นี้
+
+        สูตรอาหาร: ปลอดภัย หรือ อันตราย
+        Not safe: (ถ้าไม่มีให้ตอบกลับ "-")
+        """
+
+        payload = {
+            "model": os.getenv('FINE_TUNED_MODEL_ID'),
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('API_KEY')}",
+            headers=headers,
+            json=payload
+        )
+
+        if response.status_code != 200:
+            return jsonify({"error": "Gemini API error"}), 500
+
+        # Extract AI's response
+        ai_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+
+        # Check if the AI response contains any unsafe keywords
+        unsafe_keywords = ["อันตราย", "ยาพิษ", "ไม่ควร", "ห้าม", "อันตรายถึงชีวิต"]
+        is_safe = not any(keyword in ai_response for keyword in unsafe_keywords)
+
+        # Return a simplified response with status and suggestion
+        return jsonify({
+            "status": "Safe" if is_safe else "Not safe",
+            "suggestions": "Please revise the recipe as it contains unsafe instructions." if not is_safe else "Recipe seems safe!",
+            "ai_response": ai_response
+           
+        })
+
+    except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500

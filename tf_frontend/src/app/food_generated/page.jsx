@@ -16,6 +16,10 @@ import {
   Grid,
   CardContent,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -23,11 +27,14 @@ import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
 import UploadIcon from "@mui/icons-material/Upload";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link"; // Import Link from next/link
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"; // Success icon
+import ErrorIcon from "@mui/icons-material/Error"; // Error icon
 
 const FoodGenerated = () => {
   const searchParams = useSearchParams();
   const menuName = searchParams.get("menuName") || "Unknown Menu";
-
+  
   const [coverImage, setCoverImage] = useState(""); // Cover image URL
   const [isUploading, setIsUploading] = useState(false); // Upload state
   const [ingredients, setIngredients] = useState([]);
@@ -44,6 +51,17 @@ const FoodGenerated = () => {
   const [editText, setEditText] = useState("");
   const [newIngredient, setNewIngredient] = useState("");
   const [newInstruction, setNewInstruction] = useState("");
+
+  const [open, setOpen] = useState(false); // State for modal visibility
+  const [successMessage, setSuccessMessage] = useState(""); // State for success message
+  const [loading, setLoading] = useState(false); // State to track loading
+  const [isSuccess, setIsSuccess] = useState(false); // State for success or failure
+
+
+  const handleClose = () => {
+    setOpen(false); // Close the modal
+  };
+
 
   useEffect(() => {
     const storedCoverImage = sessionStorage.getItem("coverImage");
@@ -109,7 +127,7 @@ const FoodGenerated = () => {
     formData.append("image", file);
 
     try {
-      const response = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/api/imgur/upload", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/imgur/upload`, {
         method: "POST",
         body: formData,
       });
@@ -275,21 +293,25 @@ const handleDelete = (type, index) => {
           )}
         </Box>
         <Box sx={{ marginTop: 2 }}>
-          <Button
-            variant="contained"
-            component="label"
-            startIcon={isUploading ? <CircularProgress size={20} /> : <UploadIcon />}
-          >
-            {isUploading ? "Uploading..." : "Upload Image"}
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleImageUpload}
-              disabled={isUploading}
-            />
-          </Button>
-        </Box>
+  <Button
+    variant="contained"
+    component="label"
+    startIcon={isUploading ? <CircularProgress size={20} /> : <UploadIcon />}
+  >
+    {isUploading ? "Uploading..." : "Upload Image"}
+    <input
+      type="file"
+      accept=".jpg, .jpeg, .png, .gif, .webp"
+      hidden
+      onChange={handleImageUpload}
+      disabled={isUploading}
+    />
+  </Button>
+  <Box sx={{ marginTop: 1, fontSize: 14, color: "gray" }}>
+    Supported formats: JPG, JPEG, PNG, GIF, WEBP
+  </Box>
+</Box>
+
       </Box>
 
       {/* Main Content */}
@@ -402,6 +424,7 @@ const handleDelete = (type, index) => {
   color="primary"
   onClick={async () => {
     console.log("Submit button clicked");
+    setLoading(true); // Start loading animation
 
     try {
       console.log("Starting fetch request...");
@@ -423,8 +446,8 @@ const handleDelete = (type, index) => {
         cover_image: coverImage,
         category: sanitizedCategory,
         tags: sanitizedTags,
-        characteristics: characteristics, // Include characteristics
-        flavors: flavors,         // Include flavors
+        characteristics, // Include characteristics
+        flavors, // Include flavors
         videos: videos.map((video) => ({
           title: video.title,
           url: `https://www.youtube.com/watch?v=${video.id}`,
@@ -433,8 +456,8 @@ const handleDelete = (type, index) => {
 
       console.log("Recipe Data:", recipeData);
 
-      // Send data to the backend API
-      const response = await fetch("https://f8ec-202-12-97-159.ngrok-free.app/api/api/recipes/submit", {
+      // Call /check endpoint to validate the recipe
+      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/gemini/check`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -443,28 +466,94 @@ const handleDelete = (type, index) => {
         body: JSON.stringify(recipeData),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save recipe");
+      if (!checkResponse.ok) {
+        throw new Error("Failed to validate recipe");
       }
 
-      const data = await response.json();
-      console.log("Response received:", data);
+      const checkData = await checkResponse.json();
+      console.log("Check Response:", checkData);
 
-      // Clear session data after successful submission
-      sessionStorage.clear();
-      alert("Recipe saved successfully!");
+      // Handle AI feedback
+      if (checkData.status === "Safe") {
+        console.log("Validation passed, submitting recipe...");
 
-      // Redirect the user to a confirmation or list page
-      router.push(`/foodview/available`);
+        // Send data to the /api/recipes/submit endpoint
+        const submitResponse = await fetch(`${process.env.NEXT_PUBLIC_BACK_END_URL}/api/recipes/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Ensure cookies are sent
+          body: JSON.stringify(recipeData),
+        });
+
+        if (!submitResponse.ok) {
+          throw new Error("Failed to save recipe");
+        }
+
+        const submitData = await submitResponse.json();
+        console.log("Response received:", submitData);
+
+        // Set success message and show modal
+        setSuccessMessage("Recipe successfully submitted!");
+        setIsSuccess(true); // Set success state
+        setOpen(true); // Open modal on success
+      } else if (checkData.status === "Not Safe") {
+        // Handle the case where the recipe was flagged as unsafe
+        setSuccessMessage("Recipe validation failed: " + checkData.unsafe_parts);
+        setIsSuccess(false); // Set failure state
+        setOpen(true); // Show modal even on error
+      } else {
+        // Handle unexpected response
+        setSuccessMessage("พวกเราตรวจพบวัตถุดิบ หรือวิธีการทำที่อันตราย.");
+        setIsSuccess(false); // Set failure state
+        setOpen(true); // Show modal even on error
+      }
     } catch (error) {
       console.error("Error during fetch:", error);
-      alert("Failed to save the recipe. Please try again.");
+      setSuccessMessage("An error occurred while submitting the recipe.");
+      setIsSuccess(false); // Set failure state
+      setOpen(true); // Show modal even on error
+    } finally {
+      setLoading(false); // End loading animation
     }
   }}
 >
   Submit Recipe
 </Button>
 
+
+
+      {/* Modal */}
+      <Dialog open={open} onClose={handleClose} className="w-full h-full">
+        <div>
+        <DialogTitle>Submission Status</DialogTitle>
+        <DialogContent className=" w-full h-full flex justify-center items-center left-0">
+          {/* Display icons based on success or failure */}
+          {loading ? (
+            <CircularProgress size={50} color="primary" />
+          ) : isSuccess ? (
+            <CheckCircleIcon color="success" style={{ fontSize: 50 }} />
+          ) : (
+            <ErrorIcon color="error" style={{ fontSize: 50 }} />
+          )}
+
+          <p>{successMessage}</p>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="primary">
+            Close
+          </Button>
+
+          {/* Redirect to available recipes page when successful */}
+          {successMessage === "Recipe successfully submitted!" && (
+            <Link href="/foodview/available" passHref>
+              <Button color="primary">Go to Available Recipes</Button>
+            </Link>
+          )}
+        </DialogActions>
+        </div>
+      </Dialog>
 
 
         {/* Video Suggestions */}
