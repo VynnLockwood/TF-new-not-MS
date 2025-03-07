@@ -54,6 +54,8 @@ const Dashboard = () => {
         });
         const userData = await userResponse.json();
 
+        console.log("User login data: "+ userData)
+
         if (!userData.valid) {
           router.push('/login?error=invalid_session');
           return;

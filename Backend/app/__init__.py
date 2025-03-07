@@ -57,7 +57,7 @@ def create_app():
     from app.routes.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
 
-    from app.routes.gemini import gemini_bp
+    from app.routes.aiapi import gemini_bp
     app.register_blueprint(gemini_bp, url_prefix="/gemini")
 
     from app.routes.youtube import youtube_bp
