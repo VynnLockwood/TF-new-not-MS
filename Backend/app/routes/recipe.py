@@ -147,49 +147,6 @@ def toggle_like_recipe(recipe_id):
 
 
 
-@recipe_bp.route("/<recipe_id>/rate", methods=["POST"])
-def rate_recipe(recipe_id):
-    try:
-        current_app.logger.info(f"Incoming request to /{recipe_id}/rate")
-        data = request.json
-
-        session_id = request.cookies.get("session_id")
-        if not session_id:
-            return jsonify({"error": "Invalid or missing session_id cookie"}), 401
-
-        session_data = json.loads(current_app.extensions["redis_client"].get(session_id))
-        user_email = session_data.get("email")
-        if not user_email:
-            return jsonify({"error": "User not authenticated"}), 401
-
-        rating_score = data.get("rating")
-        if not rating_score or not (1 <= rating_score <= 5):
-            return jsonify({"error": "Invalid rating value"}), 400
-
-        # Check if the recipe exists
-        recipe = Recipe.query.get(recipe_id)
-        if not recipe:
-            return jsonify({"error": "Recipe not found"}), 404
-
-        # Update or add the user's rating
-        existing_rating = Rating.query.filter_by(recipe_id=recipe_id, user_id=user_email).first()
-        if existing_rating:
-            existing_rating.score = rating_score
-        else:
-            new_rating = Rating(recipe_id=recipe_id, user_id=user_email, score=rating_score)
-            db.session.add(new_rating)
-
-        db.session.commit()
-
-        # Calculate the new average rating
-        avg_rating = db.session.query(db.func.avg(Rating.score)).filter_by(recipe_id=recipe_id).scalar()
-
-        return jsonify({"message": "Recipe rated successfully", "average_rating": avg_rating}), 200
-    except Exception as e:
-        current_app.logger.error(f"Error in /{recipe_id}/rate: {e}")
-        current_app.logger.error(traceback.format_exc())
-        return jsonify({"error": "Internal server error"}), 500
-
 
 @recipe_bp.route("/<recipe_id>/comment", methods=["POST"])
 def comment_recipe(recipe_id):
@@ -470,10 +427,11 @@ def get_suggested_recipes(recipe_id):
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": "Internal server error"}), 500
 
+
 @recipe_bp.route("/recipes/search", methods=["GET"])
 def search_recipes():
     """
-    Search for recipes by query.
+    Search for recipes across multiple fields using a query.
     """
     try:
         # Retrieve the search query from the request
@@ -482,17 +440,52 @@ def search_recipes():
         if not query:
             return jsonify({"error": "Search query is required"}), 400
 
-        # Perform the search (use ilike for case-insensitive partial matching)
+        # Prepare regex-like pattern for ilike (case-insensitive partial matching)
+        search_pattern = f"%{query}%"
+
+        # Subqueries for counting likes, comments, favorites, and calculating average rating
+        likes_subquery = db.session.query(
+            db.func.count(Like.id).label("likes_count")
+        ).filter(Like.recipe_id == Recipe.id).correlate(Recipe).as_scalar()
+
+        comments_subquery = db.session.query(
+            db.func.count(Comment.id).label("comments_count")
+        ).filter(Comment.recipe_id == Recipe.id).correlate(Recipe).as_scalar()
+
+        favorites_subquery = db.session.query(
+            db.func.count(Favorite.id).label("favorites_count")
+        ).filter(Favorite.recipe_id == Recipe.id).correlate(Recipe).as_scalar()
+
+        ratings_subquery = db.session.query(
+            db.func.avg(Rating.score).label("avg_rating")
+        ).filter(Rating.recipe_id == Recipe.id).correlate(Recipe).as_scalar()
+
+        # Build the base query with filters for all searchable fields
         recipes_query = Recipe.query.filter(
             db.or_(
-                Recipe.name.ilike(f"%{query}%"),
-                Recipe.ingredients.ilike(f"%{query}%"),
-                Recipe.characteristics.ilike(f"%{query}%"),
-                Recipe.flavors.ilike(f"%{query}%"),
-                Recipe.tags.ilike(f"%{query}%"),
+                # String fields with ilike for partial matching
+                Recipe.name.ilike(search_pattern),
+                Recipe.category.ilike(search_pattern),
+                Recipe.characteristics.ilike(search_pattern),
+                Recipe.flavors.ilike(search_pattern),
+                Recipe.cover_image.ilike(search_pattern),
+
+                # JSON fields (cast to text for searching)
+                Recipe.ingredients.ilike(search_pattern),  # Already Text, no JSON extraction needed
+                Recipe.instructions.ilike(search_pattern),  # Already Text
+                Recipe.tags.ilike(search_pattern),  # Already Text
+
+                # Numeric fields (cast subquery results to string)
+                Recipe.id.cast(db.String).ilike(search_pattern),
+                db.func.cast(likes_subquery, db.String).ilike(search_pattern),
+                db.func.cast(comments_subquery, db.String).ilike(search_pattern),
+                db.func.cast(favorites_subquery, db.String).ilike(search_pattern),
+                db.func.cast(db.func.coalesce(ratings_subquery, 0), db.String).ilike(search_pattern),
             )
         )
-        recipes = recipes_query.all()  # Resolve the query into a list
+
+        # Execute the query
+        recipes = recipes_query.all()
 
         if not recipes:
             return jsonify([]), 200  # Return an empty list if no recipes are found
@@ -509,13 +502,13 @@ def search_recipes():
         # Format the response
         response = []
         for recipe in recipes:
-            # Resolve dynamic relationships like ratings, likes, comments, and favorites
+            # Resolve dynamic relationships
             resolved_likes = recipe.likes.count()
             resolved_comments = recipe.comments.count()
             resolved_ratings = recipe.ratings.all()
             resolved_favorites = recipe.favorites.count()
 
-            # Calculate average rating if ratings are available
+            # Calculate average rating
             average_rating = (
                 sum(rating.score for rating in resolved_ratings) / len(resolved_ratings)
                 if resolved_ratings else 0
@@ -526,12 +519,12 @@ def search_recipes():
                 "id": recipe.id,
                 "name": recipe.name,
                 "cover_image": recipe.cover_image,
-                "ingredients": safe_json_load(recipe.ingredients, []),  # Safely parse JSON
-                "instructions": safe_json_load(recipe.instructions, []),  # Safely parse JSON
+                "ingredients": safe_json_load(recipe.ingredients, []),
+                "instructions": safe_json_load(recipe.instructions, []),
                 "category": recipe.category,
-                "tags": safe_json_load(recipe.tags, []),  # Safely parse JSON
-                "characteristics": recipe.characteristics,  # Add characteristics
-                "flavors": recipe.flavors,  # Add flavors
+                "tags": safe_json_load(recipe.tags, []),
+                "characteristics": recipe.characteristics,
+                "flavors": recipe.flavors,
                 "likes": resolved_likes,
                 "comments": resolved_comments,
                 "average_rating": average_rating,
@@ -571,4 +564,236 @@ def duplicate_recipe(recipe_id):
         return jsonify(recipe_data), 200
     except Exception as e:
         current_app.logger.error(f"Error duplicating recipe: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@recipe_bp.route("/recipes/edit", methods=["POST"])
+def edit_recipe():
+    try:
+        # Log incoming request data
+        current_app.logger.info("Incoming request to /edit")
+        current_app.logger.info(f"Request JSON: {request.json}")
+
+        # Fetch user data from the session
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            current_app.logger.error("Missing session_id cookie")
+            return jsonify({"error": "Invalid or missing session_id cookie"}), 401
+
+        session_data = json.loads(current_app.extensions["redis_client"].get(session_id))
+        user_email = session_data.get("email")
+        if not user_email:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Find user in the database
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Get recipe details from the request
+        data = request.json
+        recipe_id = data.get("id")
+        if not recipe_id:
+            return jsonify({"error": "Missing recipe ID"}), 400
+
+        # Find the recipe by ID
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({"error": "Recipe not found"}), 404
+
+        # Ensure the user is the creator of the recipe
+        if recipe.created_by != user.id:
+            return jsonify({"error": "You are not authorized to edit this recipe"}), 403
+
+        # Update recipe details from the request
+        name = data.get("name", recipe.name)  # Use existing name if not provided
+        cover_image = data.get("cover_image", recipe.cover_image)  # Default to existing if not provided
+        ingredients = "\n".join(data["ingredients"]) if isinstance(data["ingredients"], list) else data["ingredients"]
+        instructions = "\n".join(data["instructions"]) if isinstance(data["instructions"], list) else data["instructions"]
+        category = data.get("category", recipe.category)  # Use existing category if not provided
+        tags = data.get("tags", recipe.tags.split(","))  # Default to existing tags if not provided
+        if isinstance(tags, list):
+            tags = ",".join([tag.strip() for tag in tags])  # Ensure it's a comma-separated string
+        characteristics = data.get("characteristics", recipe.characteristics)
+        flavors = data.get("flavors", recipe.flavors)
+
+        # Update the recipe in the database
+        recipe.name = name
+        recipe.cover_image = cover_image
+        recipe.ingredients = ingredients
+        recipe.instructions = instructions
+        recipe.category = category
+        recipe.tags = tags
+        recipe.characteristics = characteristics
+        recipe.flavors = flavors
+        recipe.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        # If videos are included, update related videos
+        if "videos" in data:
+            # Delete existing related videos before adding new ones
+            RelatedVideo.query.filter_by(recipe_id=recipe.id).delete()
+
+            for video in data["videos"]:
+                related_video = RelatedVideo(
+                    recipe_id=recipe.id,
+                    title=video["title"],
+                    url=video["url"],
+                )
+                db.session.add(related_video)
+
+            db.session.commit()
+
+        current_app.logger.info(f"Recipe successfully updated: {recipe}")
+        return jsonify({"message": "Recipe updated successfully", "recipe_id": recipe.id}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in /edit: {e}")
+        current_app.logger.error(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({"error": "Internal server error"}), 500
+
+@recipe_bp.route("/recipes/<recipe_id>/rate", methods=["POST"])
+def rate_recipe(recipe_id):
+    try:
+        current_app.logger.info(f"Incoming request to /{recipe_id}/rate")
+        data = request.json
+
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            return jsonify({"error": "Invalid or missing session_id cookie"}), 401
+
+        session_data = json.loads(current_app.extensions["redis_client"].get(session_id))
+        user_email = session_data.get("email")
+        if not user_email:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        score = data.get("score")
+        if not isinstance(score, int) or score < 1 or score > 5:
+            return jsonify({"error": "Invalid rating. Score must be between 1 and 5."}), 400
+
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({"error": "Recipe not found"}), 404
+
+        # Check if the user already rated this recipe
+        existing_rating = Rating.query.filter_by(recipe_id=recipe_id, user_id=user.id).first()
+        if existing_rating:
+            existing_rating.score = score  # Update the rating if it exists
+        else:
+            new_rating = Rating(recipe_id=recipe_id, user_id=user.id, score=score, created_at=datetime.utcnow())
+            db.session.add(new_rating)
+
+        db.session.commit()
+        return jsonify({"message": "Rating submitted successfully"}), 201
+    except Exception as e:
+        current_app.logger.error(f"Error in /{recipe_id}/rate: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": "Internal server error"}), 500
+    
+
+@recipe_bp.route("/favorites", methods=["POST"])
+def toggle_favorite():
+    """
+    Add or remove a recipe from the user's favorites using credentials in the request body.
+    Expects JSON payload:
+    {
+        "recipe_id": <int>,
+        "user_id": <int>
+    }
+    """
+    try:
+        # Log incoming request data
+        current_app.logger.info("Incoming request to /api/favorites (POST)")
+        current_app.logger.info(f"Request JSON: {request.json}")
+
+        # Get JSON data from the request
+        data = request.json
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
+        # Extract and validate user_id
+        user_id = data.get("user_id")
+        if not user_id or not isinstance(user_id, int):
+            current_app.logger.error("Missing or invalid user_id in request")
+            return jsonify({"error": "User ID is required and must be an integer"}), 401
+
+        # Authenticate user
+        user = User.query.get(user_id)
+        if not user:
+            current_app.logger.error(f"User not found for ID: {user_id}")
+            return jsonify({"error": "User not found"}), 404
+
+        # Extract recipe_id
+        recipe_id = data.get("recipe_id")
+        if not recipe_id or not isinstance(recipe_id, int):
+            return jsonify({"error": "Recipe ID is required and must be an integer"}), 400
+
+        # Verify recipe exists
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({"error": "Recipe not found"}), 404
+
+        # Check if the recipe is already favorited by the user
+        existing_favorite = Favorite.query.filter_by(
+            user_id=user.id, recipe_id=recipe_id
+        ).first()
+
+        if existing_favorite:
+            # Remove from favorites
+            db.session.delete(existing_favorite)
+            db.session.commit()
+            return jsonify({"message": f"Recipe {recipe_id} removed from favorites"}), 200
+        else:
+            # Add to favorites
+            new_favorite = Favorite(
+                user_id=user.id,
+                recipe_id=recipe_id,
+                created_at=datetime.utcnow(),
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return jsonify({"message": f"Recipe {recipe_id} added to favorites"}), 201
+
+    except Exception as e:
+        current_app.logger.error(f"Error in toggle_favorite: {e}")
+        db.session.rollback()
+        return jsonify({"error": "Internal server error"}), 500
+    
+@recipe_bp.route("/users/<int:user_id>/favorites", methods=["GET"])
+def get_user_favorites(user_id):
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            current_app.logger.error(f"User not found for ID: {user_id}")
+            return jsonify({"error": "User not found"}), 404
+
+        favorites = Favorite.query.filter_by(user_id=user_id).all()
+        if not favorites:
+            return jsonify([]), 200
+
+        recipe_ids = [fav.recipe_id for fav in favorites]
+        recipes = Recipe.query.filter(Recipe.id.in_(recipe_ids)).all()
+
+        favorite_recipes = [
+            {
+                "id": recipe.id,
+                "name": recipe.name,
+                "cover_image": recipe.cover_image,
+                "likes": recipe.likes.count() if recipe.likes else 0,  # Use count() for likes
+                "comments": recipe.comments.count() if recipe.comments else 0
+            }
+            for recipe in recipes
+        ]
+
+        current_app.logger.info(f"Returning favorite recipes: {favorite_recipes}")
+        return jsonify(favorite_recipes), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user favorites: {e}")
         return jsonify({"error": "Internal server error"}), 500
