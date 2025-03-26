@@ -12,8 +12,10 @@ def login():
     """Handle user login via Google OAuth."""
     oauth = current_app.extensions['oauth']  # Access OAuth from the app context
     google_client = oauth.create_client('google')  # Create the Google client
-    redirect_uri = url_for('auth.authorize', _external=True, _scheme='https')
-    #redirect_uri = url_for('auth.authorize', _external=True)
+
+    #set _scheme='https' for more security and turn it down if you wanna test it on http protocal
+    #redirect_uri = url_for('auth.authorize', _external=True, _scheme='https')
+    redirect_uri = url_for('auth.authorize', _external=True)
     return google_client.authorize_redirect(redirect_uri)
 
 @auth_bp.route('/authorize')
@@ -76,7 +78,7 @@ def authorize():
             value=session_id,
             max_age=3600,
             httponly=True,
-            secure=True,  # Secure should be True in production with HTTPS
+            secure=False,  # Secure should be True in production with HTTPS, on dev mode use False to test on HTTP protocal
             samesite='None'
         )
         print(f"Session cookie set: {session_id}")

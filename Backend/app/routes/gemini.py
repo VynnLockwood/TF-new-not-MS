@@ -189,7 +189,7 @@ def check_recipe():
         instructions = recipe_data.get("instructions", [])
         category = recipe_data.get("category", "")
         tags = recipe_data.get("tags", [])
-        cover_image = recipe_data.get("cover_image", "")
+        cover_image = recipe_data.get("cover_image", "")  # Not used in prompt, but extracted
         characteristics = recipe_data.get("characteristics", [])
         flavors = recipe_data.get("flavors", [])
         videos = recipe_data.get("videos", [])
@@ -197,30 +197,41 @@ def check_recipe():
         if not menu_name or not ingredients or not instructions:
             return jsonify({"error": "All fields (name, ingredients, instructions) are required"}), 400
 
-        # Construct the prompt for Gemini or another AI service
-        prompt = f"""
-            ตรวจสอบสูตรอาหารนี้ให้ดี โดยต้องแน่ใจว่าการทำอาหารในสูตรนี้ปลอดภัย และไม่มีคำแนะนำที่ผิดหรืออันตราย เช่น "ทอดจนสีดำ" หรือ "กินดิบ" หรือคำแนะนำที่ไม่เหมาะสม เช่น "ใส่ระเบิด" หรือคำที่ไม่เกี่ยวข้องกับการทำอาหาร
-            ชื่อเมนู: {menu_name}
-            ส่วนผสม:
-            {"\n".join([f"- {ingredient}" for ingredient in ingredients])}
-            วิธีทำ:
-            {"\n".join([f"{idx+1}. {instruction}" for idx, instruction in enumerate(instructions)])}
-            หมวดหมู่: {category}
-            แท็ก: {', '.join(tags)}
-            ลักษณะ: {', '.join(characteristics)}
-            รสชาติ: {', '.join(flavors)}
-            วิดีโอ: {', '.join([video['url'] for video in videos])}
+        # Prepare the lists for ingredients, instructions, and other fields
+        ingredients_lines = [f"- {ingredient}" for ingredient in ingredients]
+        instructions_lines = [f"{idx+1}. {instruction}" for idx, instruction in enumerate(instructions)]
+        videos_lines = [video['url'] for video in videos] if videos else []
+        tags_lines = tags if tags else []
+        characteristics_lines = characteristics if characteristics else []
+        flavors_lines = flavors if flavors else []
 
-            กรุณาตอบกลับโดยแจ้งเตือนหากพบการทำอาหารที่ผิดพลาดหรือมีอันตราย พร้อมคำแนะนำในการปรับปรุงสูตรนี้
+        # Construct the prompt as a list of lines to avoid backslashes
+        prompt_lines = [
+            "ตรวจสอบสูตรอาหารนี้ให้ดี โดยต้องแน่ใจว่าการทำอาหารในสูตรนี้ปลอดภัย และไม่มีคำแนะนำที่ผิดหรืออันตราย เช่น \"ทอดจนสีดำ\" หรือ \"กินดิบ\" หรือคำแนะนำที่ไม่เหมาะสม เช่น \"ใส่ระเบิด\" หรือคำที่ไม่เกี่ยวข้องกับการทำอาหาร",
+            f"ชื่อเมนู: {menu_name}",
+            "ส่วนผสม:",
+            *ingredients_lines,
+            "วิธีทำ:",
+            *instructions_lines,
+            f"หมวดหมู่: {category}",
+            f"แท็ก: {', '.join(tags_lines) if tags_lines else '-'}",
+            f"ลักษณะ: {', '.join(characteristics_lines) if characteristics_lines else '-'}",
+            f"รสชาติ: {', '.join(flavors_lines) if flavors_lines else '-'}",
+            f"วิดีโอ: {', '.join(videos_lines) if videos_lines else '-'}",
+            "",
+            "กรุณาตอบกลับโดยแจ้งเตือนหากพบการทำอาหารที่ผิดพลาดหรือมีอันตราย พร้อมคำแนะนำในการปรับปรุงสูตรนี้",
+            "",
+            "ตอบกลับโดยใช้ format นี้",
+            "",
+            "สูตรอาหาร: ปลอดภัย หรือ อันตราย",
+            "Not safe: (ถ้าไม่มีให้ตอบกลับ \"-\")",
+            "reason: (ให้ตอบกลับถ้าอาหารไม่ปลอดถัย โดยให้เหตุผลว่าทำไมสูตรนี้ถึงไม่ปลอดภัย เช่น การใช้คำแนะนำที่ไม่เหมาะสมหรือมีความเสี่ยง)"
+        ]
 
-            ตอบกลับโดยใช้ format นี้
+        # Join the lines with os.linesep (no backslashes)
+        prompt = os.linesep.join(prompt_lines)
 
-            สูตรอาหาร: ปลอดภัย หรือ อันตราย
-            Not safe: (ถ้าไม่มีให้ตอบกลับ "-")
-            reason: (ให้ตอบกลับถ้าอาหารไม่ปลอดถัย โดยให้เหตุผลว่าทำไมสูตรนี้ถึงไม่ปลอดภัย เช่น การใช้คำแนะนำที่ไม่เหมาะสมหรือมีความเสี่ยง)
-            """
-
-
+        # Prepare the payload for the Gemini API
         payload = {
             "model": os.getenv('FINE_TUNED_MODEL_ID'),
             "contents": [{"parts": [{"text": prompt}]}]
@@ -234,7 +245,7 @@ def check_recipe():
         )
 
         if response.status_code != 200:
-            return jsonify({"error": "Gemini API error"}), 500
+            return jsonify({"error": "Gemini API error", "details": response.text}), 500
 
         # Extract AI's response
         ai_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
@@ -284,24 +295,33 @@ def check_and_edit_recipe():
         if not recipe_id or not ingredients or not instructions:
             return jsonify({"error": "ID, ingredients, and instructions are required"}), 400
 
-        # Construct the prompt for Gemini or another AI service for validation
-        prompt = f"""
-        ตรวจสอบสูตรอาหารนี้ให้ดี โดยต้องแน่ใจว่าการทำอาหารในสูตรนี้ปลอดภัย และไม่มีคำแนะนำที่ผิดหรืออันตราย เช่น "ทอดจนสีดำ" หรือ "กินดิบ" หรือคำแนะนำที่ไม่เหมาะสม เช่น "ใส่ระเบิด" หรือคำที่ไม่เกี่ยวข้องกับการทำอาหาร
-        ID: {recipe_id}
-        ส่วนผสม:
-        {"\n".join([f"- {ingredient}" for ingredient in ingredients])}
-        วิธีทำ:
-        {"\n".join([f"{idx+1}. {instruction}" for idx, instruction in enumerate(instructions)])}
+        # Prepare the lists for ingredients and instructions
+        ingredients_lines = [f"- {ingredient}" for ingredient in ingredients]
+        instructions_lines = [f"{idx+1}. {instruction}" for idx, instruction in enumerate(instructions)]
+        tags_lines = tags if tags else []
 
-        กรุณาตอบกลับโดยแจ้งเตือนหากพบการทำอาหารที่ผิดพลาดหรือมีอันตราย พร้อมคำแนะนำในการปรับปรุงสูตรนี้
+        # Construct the prompt as a list of lines to avoid backslashes
+        prompt_lines = [
+            "ตรวจสอบสูตรอาหารนี้ให้ดี โดยต้องแน่ใจว่าการทำอาหารในสูตรนี้ปลอดภัย และไม่มีคำแนะนำที่ผิดหรืออันตราย เช่น \"ทอดจนสีดำ\" หรือ \"กินดิบ\" หรือคำแนะนำที่ไม่เหมาะสม เช่น \"ใส่ระเบิด\" หรือคำที่ไม่เกี่ยวข้องกับการทำอาหาร",
+            f"ID: {recipe_id}",
+            "ส่วนผสม:",
+            *ingredients_lines,
+            "วิธีทำ:",
+            *instructions_lines,
+            "",
+            "กรุณาตอบกลับโดยแจ้งเตือนหากพบการทำอาหารที่ผิดพลาดหรือมีอันตราย พร้อมคำแนะนำในการปรับปรุงสูตรนี้",
+            "",
+            "ตอบกลับโดยใช้ format นี้",
+            "",
+            "สูตรอาหาร: ปลอดภัย หรือ อันตราย",
+            "Not safe: (ถ้าไม่มีให้ตอบกลับ \"-\")",
+            "reason: (ให้ตอบกลับถ้าอาหารไม่ปลอดถัย โดยให้เหตุผลว่าทำไมสูตรนี้ถึงไม่ปลอดภัย เช่น การใช้คำแนะนำที่ไม่เหมาะสมหรือมีความเสี่ยง)"
+        ]
 
-        ตอบกลับโดยใช้ format นี้
+        # Join the lines with os.linesep (no backslashes)
+        prompt = os.linesep.join(prompt_lines)
 
-            สูตรอาหาร: ปลอดภัย หรือ อันตราย
-            Not safe: (ถ้าไม่มีให้ตอบกลับ "-")
-            reason: (ให้ตอบกลับถ้าอาหารไม่ปลอดถัย โดยให้เหตุผลว่าทำไมสูตรนี้ถึงไม่ปลอดภัย เช่น การใช้คำแนะนำที่ไม่เหมาะสมหรือมีความเสี่ยง)
-        """
-
+        # Prepare the payload for the Gemini API
         payload = {
             "model": os.getenv('FINE_TUNED_MODEL_ID'),
             "contents": [{"parts": [{"text": prompt}]}]
@@ -315,7 +335,7 @@ def check_and_edit_recipe():
         )
 
         if response.status_code != 200:
-            return jsonify({"error": "Gemini API error"}), 500
+            return jsonify({"error": "Gemini API error", "details": response.text}), 500
 
         # Extract AI's response
         ai_response = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
