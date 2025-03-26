@@ -58,27 +58,8 @@ const LoginPage = () => {
         </p>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         <div className="space-y-4">
-          <input
-            type="email"
-            placeholder="E-mail"
-            className="w-full px-4 py-2 sm:py-3 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className="w-full px-4 py-2 sm:py-3 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleLoginClick}
-            className={`w-full py-2 sm:py-3 px-6 text-white font-medium rounded-lg shadow-md transition duration-300 ${
-              loading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700'
-            }`}
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
+          
+          
         </div>
         <div className="flex items-center my-4">
           <div className="flex-grow border-t border-gray-300"></div>

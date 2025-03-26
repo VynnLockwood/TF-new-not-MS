@@ -6,6 +6,8 @@ Flask_Migrate==4.0.4
 flask_session==0.8.0
 flask_sqlalchemy==3.1.1
 imgurpython==1.1.7
+Pillow==10.4.0
+psycopg2-binary==2.9.9  # For PostgreSQL
 python-dotenv==1.0.1
 redis==5.2.1
 Requests==2.32.3

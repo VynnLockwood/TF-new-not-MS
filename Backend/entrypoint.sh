@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Wait for the database to be ready (optional, if using a separate DB container)
-until nc -z localhost 5432; do
-    echo "Waiting for PostgreSQL to be ready..."
+# Wait for the PostgreSQL container to be ready
+until nc -z postgres-container 5432; do
+    echo "Waiting for PostgreSQL at postgres-container:5432 to be ready..."
     sleep 1
 done
 
