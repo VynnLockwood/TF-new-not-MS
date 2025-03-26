@@ -1,0 +1,404 @@
+<html><head><meta charset="utf-8"/><title>Test Report</title><style type="text/css">:root {
+  --text-primary: #111;
+  --text-secondary: #4f4f4f;
+  --success: #006633;
+  --success-bright: #80ffbf;
+  --danger: #cc071e;
+  --danger-bright: #fbdfe0;
+  --warning: #995c00;
+  --warning-bright: #ffeea8;
+  --panel: #eee;
+  --border: #949494;
+  --disabled: #6b6b6b;
+}
+
+html,
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--text-primary);
+}
+body {
+  padding: 2rem 1rem;
+}
+.jesthtml-content {
+  margin: 0 auto;
+  max-width: 70rem;
+}
+header {
+  display: flex;
+  align-items: center;
+}
+#title {
+  margin: 0;
+  flex-grow: 1;
+}
+#logo {
+  height: 4rem;
+}
+#timestamp {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+#metadata-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.additional-information-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+}
+
+/** SUMMARY */
+#summary {
+  color: var(--text-primary);
+  display: flex;
+  font-family: monospace;
+  font-size: 1rem;
+}
+#summary > div {
+  margin-right: 0.5rem;
+  background: var(--panel);
+  padding: 1rem;
+  min-width: 15rem;
+}
+#summary > div:last-child {
+  margin-right: 0;
+}
+@media only screen and (max-width: 720px) {
+  #summary {
+    flex-direction: column;
+  }
+  #summary > div {
+    margin-right: 0;
+    margin-top: 1rem;
+  }
+  #summary > div:first-child {
+    margin-top: 0;
+  }
+}
+
+.summary-total {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+.summary-passed {
+  color: var(--success);
+  border-left: 0.4rem solid var(--success);
+  padding-left: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+.summary-failed,
+.summary-obsolete-snapshots {
+  color: var(--danger);
+  border-left: 0.4rem solid var(--danger);
+  padding-left: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+.summary-pending {
+  color: var(--warning);
+  border-left: 0.4rem solid var(--warning);
+  padding-left: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+.summary-empty {
+  color: var(--disabled);
+  border-left: 0.4rem solid var(--disabled);
+  margin-bottom: 0.15rem;
+}
+
+.test-result {
+  padding: 1rem;
+  margin-bottom: 0.25rem;
+}
+.test-result:last-child {
+  border: 0;
+}
+.test-result.passed {
+  background-color: var(--success-bright);
+  color: var(--success);
+}
+.test-result.failed {
+  background-color: var(--danger-bright);
+  color: var(--danger);
+}
+.test-result.pending {
+  background-color: var(--warning-bright);
+  color: var(--warning);
+}
+
+.test-info {
+  display: flex;
+  justify-content: space-between;
+}
+.test-suitename {
+  width: 20%;
+  text-align: left;
+  font-weight: bold;
+  word-break: break-word;
+}
+.test-title {
+  width: 40%;
+  text-align: left;
+  font-style: italic;
+}
+.test-status {
+  width: 20%;
+  text-align: right;
+}
+.test-duration {
+  width: 10%;
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.failureMessages {
+  padding: 0 1rem;
+  margin-top: 1rem;
+  border-top: 1px dashed var(--danger);
+}
+.failureMessages.suiteFailure {
+  border-top: none;
+}
+.failureMsg {
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+}
+
+.suite-container {
+  margin-bottom: 1rem;
+}
+.suite-info {
+  padding: 1rem;
+  background-color: var(--panel);
+  color: var(--text-secondary);
+  border: 0.15rem solid;
+  border-color: var(--panel);
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+.suite-info:hover {
+  border-color: var(--border);
+  cursor: pointer;
+}
+.suite-info .suite-path {
+  word-break: break-all;
+  flex-grow: 1;
+  font-family: monospace;
+  font-size: 1rem;
+}
+.suite-info .suite-time {
+  margin-left: 1rem;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.85rem;
+}
+.suite-info .suite-time.warn {
+  background-color: var(--danger);
+  color: #fff;
+}
+.suite-info:before {
+  content: "\2303";
+  display: inline-block;
+  margin-right: 1rem;
+  transform: rotate(180deg) translateY(0.15rem);
+}
+.suite-container[open] .suite-info:before {
+  transform: rotate(0deg) translateY(0.15rem);
+}
+
+/* CONSOLE LOGS */
+.suite-consolelog {
+  margin-bottom: 0.25rem;
+  padding: 1rem;
+  background-color: var(--panel);
+}
+.suite-consolelog-header {
+  font-weight: bold;
+}
+.suite-consolelog-item {
+  padding: 0.5rem;
+}
+.suite-consolelog-item pre {
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+}
+.suite-consolelog-item-origin {
+  color: var(--text-secondary);
+  font-weight: bold;
+}
+.suite-consolelog-item-message {
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0 0.5rem;
+}
+
+/* OBSOLETE SNAPSHOTS */
+.suite-obsolete-snapshots {
+  margin-bottom: 0.25rem;
+  padding: 1rem;
+  background-color: var(--danger-bright);
+  color: var(--danger);
+}
+.suite-obsolete-snapshots-header {
+  font-weight: bold;
+}
+.suite-obsolete-snapshots-item {
+  padding: 0.5rem;
+}
+.suite-obsolete-snapshots-item pre {
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+}
+.suite-obsolete-snapshots-item-message {
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0 0.5rem;
+}
+</style></head><body><main class="jesthtml-content"><header><h1 id="title">Test Report</h1></header><section id="metadata-container"><div id="timestamp">Started: 2025-03-27 02:20:27</div><div id="summary"><div id="suite-summary"><div class="summary-total">Suites (3)</div><div class="summary-passed ">2 passed</div><div class="summary-failed ">1 failed</div><div class="summary-pending  summary-empty">0 pending</div></div><div id="test-summary"><div class="summary-total">Tests (20)</div><div class="summary-passed ">17 passed</div><div class="summary-failed ">3 failed</div><div class="summary-pending  summary-empty">0 pending</div></div></div></section><details id="suite-1" class="suite-container" open=""><summary class="suite-info"><div class="suite-path">/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js</div><div class="suite-time">2.751s</div></summary><div class="suite-tests"><div class="test-result passed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">renders login page with welcome message and Google login button</div><div class="test-status">passed</div><div class="test-duration">0.08s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">checks authentication on mount and redirects if valid</div><div class="test-status">passed</div><div class="test-duration">0.065s</div></div></div><div class="test-result failed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">handles auth check error without crashing when user is not logged in</div><div class="test-status">failed</div><div class="test-duration">1.016s</div></div><div class="failureMessages"> <pre class="failureMsg">Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: "Error during auth check:", ObjectContaining {"message": Any&lt;String&gt;}
+
+Number of calls: 0
+
+Ignored nodes: comments, script, style
+&lt;html&gt;
+  &lt;head /&gt;
+  &lt;body&gt;
+    &lt;div&gt;
+      &lt;div
+        class="flex items-center justify-center min-h-screen bg-gray-100 px-4 sm:px-6 lg:px-8"
+      &gt;
+        &lt;div
+          class="relative w-full max-w-md bg-white/80 backdrop-blur-lg p-6 sm:p-8 rounded-xl shadow-lg"
+        &gt;
+          &lt;div
+            class="flex justify-center mb-6"
+          &gt;
+            &lt;img
+              alt="Thai Foods Logo"
+              class="w-36 sm:h-auto"
+              src="https://i.postimg.cc/sX2ntz2w/Wok-Asian-Food-Logo.png"
+            /&gt;
+          &lt;/div&gt;
+          &lt;h1
+            class="text-xl sm:text-2xl font-bold text-center text-gray-800 mb-4"
+          &gt;
+            Welcome
+          &lt;/h1&gt;
+          &lt;p
+            class="text-sm sm:text-base text-center text-gray-600 mb-6"
+          &gt;
+            Sign in to continue
+          &lt;/p&gt;
+          &lt;div
+            class="space-y-4"
+          /&gt;
+          &lt;div
+            class="flex items-center my-4"
+          &gt;
+            &lt;div
+              class="flex-grow border-t border-gray-300"
+            /&gt;
+            &lt;span
+              class="mx-4 text-gray-400"
+            &gt;
+              or
+            &lt;/span&gt;
+            &lt;div
+              class="flex-grow border-t border-gray-300"
+            /&gt;
+          &lt;/div&gt;
+          &lt;div
+            class="space-y-4"
+          &gt;
+            &lt;button
+              class="flex items-center justify-center w-full py-2 sm:py-3 px-6 text-gray-600 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 hover:bg-gray-100"
+            &gt;
+              &lt;img
+                alt="Google Logo"
+                class="h-5 w-5 mr-2"
+                src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA"
+              /&gt;
+              &lt;span
+                class="font-medium"
+              &gt;
+                Log in with Google
+              &lt;/span&gt;
+            &lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+    at toHaveBeenCalledWith (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:71:31)
+    at runWithExpensiveErrorDiagnosticsDisabled (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/@testing-library/dom/dist/config.js:47:12)
+    at checkCallback (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+    at checkRealTimersCallback (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+    at Timeout.task [as _onTimeout] (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jsdom/lib/jsdom/browser/Window.js:520:19)
+    at listOnTimeout (node:internal/timers:594:17)
+    at processTimers (node:internal/timers:529:7)</pre></div></div><div class="test-result failed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">handles Google login button click</div><div class="test-status">failed</div><div class="test-duration">0.022s</div></div><div class="failureMessages"> <pre class="failureMsg">Error: expect(element).toBeDisabled()
+
+Received element is not disabled:
+  &lt;span class="font-medium" /&gt;
+    at toBeDisabled (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:89:25)
+    at call (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at Generator.tryCatch (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at Generator._invoke [as next] (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at asyncGeneratorStep (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at asyncGeneratorStep (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at _next (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at new Promise (&lt;anonymous&gt;)
+    at Object.&lt;anonymous&gt; (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:2:1)
+    at Promise.then.completed (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:121:9)
+    at run (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+    at jestAdapter (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+    at runTestInternal (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/runTest.js:367:16)
+    at runTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/runTest.js:444:34)
+    at Object.worker (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/testWorker.js:106:12)</pre></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">displays error message when login fails</div><div class="test-status">passed</div><div class="test-duration">0.015s</div></div></div><div class="test-result failed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">shows loading state while logging in</div><div class="test-status">failed</div><div class="test-duration">0.009s</div></div><div class="failureMessages"> <pre class="failureMsg">Error: expect(element).toHaveClass("cursor-not-allowed opacity-50")
+
+Expected the element to have class:
+  cursor-not-allowed opacity-50
+Received:
+  font-medium
+    at Object.toHaveClass (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/login.test.js:122:25)
+    at Promise.then.completed (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:121:9)
+    at run (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+    at jestAdapter (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+    at runTestInternal (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/runTest.js:367:16)
+    at runTest (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/runTest.js:444:34)
+    at Object.worker (/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/node_modules/jest-runner/build/testWorker.js:106:12)</pre></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">LoginPage</div><div class="test-title">renders logo image correctly</div><div class="test-status">passed</div><div class="test-duration">0.005s</div></div></div></div></details><details id="suite-2" class="suite-container" open=""><summary class="suite-info"><div class="suite-path">/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/available_recipes.test.js</div><div class="suite-time">3.418s</div></summary><div class="suite-tests"><div class="test-result passed"><div class="test-info"><div class="test-suitename">AvailableRecipesPage</div><div class="test-title">renders loading state initially</div><div class="test-status">passed</div><div class="test-duration">0.114s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">AvailableRecipesPage</div><div class="test-title">displays error message when fetch fails</div><div class="test-status">passed</div><div class="test-duration">0.027s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">AvailableRecipesPage</div><div class="test-title">displays no recipes message when none are available</div><div class="test-status">passed</div><div class="test-duration">0.013s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">AvailableRecipesPage</div><div class="test-title">navigates to recipe details on View Recipe click</div><div class="test-status">passed</div><div class="test-duration">0.12s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">AvailableRecipesPage</div><div class="test-title">navigates to tag page on tag chip click</div><div class="test-status">passed</div><div class="test-duration">0.045s</div></div></div></div></details><details id="suite-3" class="suite-container" open=""><summary class="suite-info"><div class="suite-path">/Users/nolanrobinson/Documents/Project/TF-new-not-MS/tf_frontend/src/__tests__/pages/generateai.test.js</div><div class="suite-time">4.031s</div></summary><div class="suite-tests"><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">renders the generate page with initial UI elements</div><div class="test-status">passed</div><div class="test-duration">0.237s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">updates prompt input value</div><div class="test-status">passed</div><div class="test-duration">0.071s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">enables generate button when prompt is provided</div><div class="test-status">passed</div><div class="test-duration">0.082s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">handles successful recipe generation and navigation</div><div class="test-status">passed</div><div class="test-duration">0.136s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">detects and displays error when recipe is not safe from generate API</div><div class="test-status">passed</div><div class="test-duration">0.094s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">detects and displays error when recipe is not safe from parse API</div><div class="test-status">passed</div><div class="test-duration">0.084s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">detects unauthorized access and shows login dialog</div><div class="test-status">passed</div><div class="test-duration">0.148s</div></div></div><div class="test-result passed"><div class="test-info"><div class="test-suitename">GeneratePage</div><div class="test-title">detects fetch errors and retries up to max attempts</div><div class="test-status">passed</div><div class="test-duration">0.082s</div></div></div></div></details></main></body></html>
